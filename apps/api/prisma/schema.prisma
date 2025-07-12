@@ -1,0 +1,126 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+model User {
+  id                  String   @id @default(cuid())
+  email               String   @unique
+  name                String
+  avatar              String?
+  githubId            String?  @unique
+  emailNotifications  Boolean  @default(true)
+  preferredLanguages  String[] @default([])
+  preferredRepos      String[] @default([])
+  theme               String   @default("system") // light, dark, system
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  favorites           Favorite[]
+  searches            Search[]
+
+  @@map("users")
+}
+
+model Content {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @db.Text
+  contentHash String   @unique // SHA256 of content for deduplication
+  repo        String
+  path        String
+  language    String
+  branch      String   @default("main")
+  author      String?
+  size        Int
+  type        String   @default("file") // file, stackoverflow, documentation
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  chunks      ContentChunk[]
+  favorites   Favorite[]
+
+  @@unique([repo, path, branch])
+  @@index([repo, language])
+  @@index([type, language])
+  @@index([createdAt])
+  @@map("content")
+}
+
+model ContentChunk {
+  id         String                     @id @default(cuid())
+  contentId  String
+  text       String                     @db.Text
+  startIndex Int
+  endIndex   Int
+  tokens     Int
+  embedding  Unsupported("vector(1536)")?  // OpenAI text-embedding-3-small dimension
+  createdAt  DateTime                   @default(now())
+
+  // Relations
+  content    Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@index([contentId])
+  @@map("content_chunks")
+}
+
+model Search {
+  id         String   @id @default(cuid())
+  userId     String?
+  query      String
+  filters    Json?    // Store search filters as JSON
+  resultCount Int     @default(0)
+  took       Int      // Response time in milliseconds
+  createdAt  DateTime @default(now())
+
+  // Relations
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("searches")
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  contentId String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contentId])
+  @@map("favorites")
+}
+
+model IngestionJob {
+  id          String   @id @default(cuid())
+  type        String   // github, stackoverflow
+  source      String   // repo URL or stackoverflow tag
+  status      String   @default("pending") // pending, running, completed, failed
+  progress    Int      @default(0) // 0-100
+  itemsTotal  Int      @default(0)
+  itemsDone   Int      @default(0)
+  error       String?  @db.Text
+  metadata    Json?    // Store job-specific metadata
+  createdAt   DateTime @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  @@index([status, type])
+  @@index([createdAt])
+  @@map("ingestion_jobs")
+}
