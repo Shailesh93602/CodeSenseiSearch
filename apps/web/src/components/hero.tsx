@@ -48,9 +48,20 @@ export function Hero() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="h-14 pl-11 pr-4 text-base bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:bg-white/20 focus:border-blue-400"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    window.location.href = `/search?q=${encodeURIComponent(searchQuery)}`;
+                  }
+                }}
               />
             </div>
-            <Button size="lg" className="ml-3 h-14 px-8 bg-blue-600 hover:bg-blue-700">
+            <Button 
+              size="lg" 
+              className="ml-3 h-14 px-8 bg-blue-600 hover:bg-blue-700"
+              onClick={() => {
+                window.location.href = `/search?q=${encodeURIComponent(searchQuery)}`;
+              }}
+            >
               Search
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -67,7 +78,9 @@ export function Hero() {
             ].map((suggestion) => (
               <button
                 key={suggestion}
-                onClick={() => setSearchQuery(suggestion)}
+                onClick={() => {
+                  window.location.href = `/search?q=${encodeURIComponent(suggestion)}`;
+                }}
                 className="rounded-full bg-white/10 px-3 py-1 text-sm text-slate-300 hover:bg-white/20 transition-colors"
               >
                 {suggestion}
