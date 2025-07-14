@@ -16,30 +16,30 @@ export function SearchBar({ query, onQueryChange }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const recentSearches = [
-    "useEffect cleanup",
-    "Python list comprehension", 
-    "JavaScript async patterns"
+    "React useEffect cleanup", 
+    "Python async generators",
+    "TypeScript conditional types"
   ];
 
   const trendingSearches = [
-    "Next.js 14 features",
-    "React Server Components",
-    "AI code generation"
+    "Go concurrency patterns",
+    "CSS container queries", 
+    "JWT refresh tokens"
   ];
 
   // Mock suggestions based on query
   const suggestions = useMemo(() => {
     const allSuggestions = [
-      "React hooks tutorial",
-      "Python async/await patterns",
-      "JWT authentication Node.js",
-      "CSS Grid responsive layout",
-      "Docker container setup",
-      "GraphQL query optimization",
-      "TypeScript generics examples",
-      "REST API best practices",
-      "MongoDB aggregation pipeline",
-      "Vue.js composition API"
+      "React useEffect Hook cleanup patterns",
+      "Python async/await modern concurrency",
+      "TypeScript advanced generics conditional types",
+      "JWT authentication Node.js refresh tokens", 
+      "CSS Grid layouts container queries",
+      "Go concurrent web scraper worker pools",
+      "JavaScript memory leaks prevention",
+      "Python generators async iterators",
+      "Docker container best practices",
+      "GraphQL query optimization techniques"
     ];
 
     if (query.length > 0) {
@@ -173,7 +173,7 @@ export function SearchBar({ query, onQueryChange }: SearchBarProps) {
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-2 mt-3">
         <span className="text-sm text-slate-500">Try:</span>
-        {["React hooks", "Python algorithms", "API authentication", "CSS layouts"].map((suggestion) => (
+        {["React hooks", "Python async", "TypeScript generics", "Go concurrency"].map((suggestion) => (
           <button
             key={suggestion}
             onClick={() => handleSuggestionClick(suggestion)}
