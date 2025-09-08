@@ -1,5 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// CodeSenseiSearch Prisma Schema - Phase 2 Enhanced
+// Comprehensive schema for content ingestion, embedding storage, and hybrid search
 
 generator client {
   provider        = "prisma-client-js"
@@ -12,6 +12,7 @@ datasource db {
   extensions = [vector]
 }
 
+// User management (from Phase 1)
 model User {
   id                  String   @id @default(cuid())
   email               String   @unique
@@ -32,49 +33,304 @@ model User {
   @@map("users")
 }
 
-model Content {
+// Content Sources (GitHub, StackOverflow, etc.) - Phase 2
+model Source {
   id          String   @id @default(cuid())
-  title       String
-  content     String   @db.Text
-  contentHash String   @unique // SHA256 of content for deduplication
-  repo        String
-  path        String
-  language    String
-  branch      String   @default("main")
-  author      String?
-  size        Int
-  type        String   @default("file") // file, stackoverflow, documentation
+  name        String   @unique // 'github', 'stackoverflow'
+  displayName String   // 'GitHub', 'Stack Overflow'
+  type        SourceType
+  baseUrl     String?  // API base URL
+  isActive    Boolean  @default(true)
+  config      Json?    // Source-specific configuration
+  
+  // Rate limiting settings
+  rateLimit   Int?     // Requests per hour
+  rateLimitWindow Int? // Window in seconds
+  
+  // Relationships
+  repositories Repository[]
+  questions    Question[]
+  ingestionJobs IngestionJob[]
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  // Relations
-  chunks      ContentChunk[]
-  favorites   Favorite[]
-
-  @@unique([repo, path, branch])
-  @@index([repo, language])
-  @@index([type, language])
-  @@index([createdAt])
-  @@map("content")
+  
+  @@map("sources")
 }
 
+// GitHub Repositories - Phase 2
+model Repository {
+  id          String   @id @default(cuid())
+  sourceId    String
+  
+  // GitHub metadata
+  githubId    Int      @unique
+  fullName    String   @unique // "owner/repo"
+  name        String
+  owner       String
+  description String?
+  
+  // Repository stats
+  starCount   Int      @default(0)
+  forkCount   Int      @default(0)
+  language    String?
+  size        Int      @default(0) // Size in KB
+  
+  // URLs and references
+  htmlUrl     String
+  cloneUrl    String
+  defaultBranch String @default("main")
+  
+  // Ingestion metadata
+  lastIngestionAt DateTime?
+  ingestionStatus IngestionStatus @default(PENDING)
+  ingestionError  String?
+  
+  // Content statistics
+  fileCount      Int @default(0)
+  contentCount   Int @default(0)
+  chunkCount     Int @default(0)
+  embeddingCount Int @default(0)
+  
+  // Relationships
+  source        Source @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  contents      Content[]
+  ingestionJobs IngestionJob[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([sourceId])
+  @@index([language])
+  @@index([starCount])
+  @@index([ingestionStatus])
+  @@index([lastIngestionAt])
+  @@map("repositories")
+}
+
+// StackOverflow Questions - Phase 2
+model Question {
+  id          String   @id @default(cuid())
+  sourceId    String
+  
+  // StackOverflow metadata
+  questionId  Int      @unique
+  title       String
+  body        String
+  tags        String[] // Array of tag names
+  
+  // Question stats
+  score       Int      @default(0)
+  viewCount   Int      @default(0)
+  answerCount Int      @default(0)
+  
+  // Status and metadata
+  isAnswered  Boolean  @default(false)
+  hasAcceptedAnswer Boolean @default(false)
+  
+  // Ingestion metadata
+  lastIngestionAt DateTime?
+  ingestionStatus IngestionStatus @default(PENDING)
+  ingestionError  String?
+  
+  // URLs
+  htmlUrl     String
+  
+  // Content statistics
+  contentCount   Int @default(0)
+  chunkCount     Int @default(0)
+  embeddingCount Int @default(0)
+  
+  // Relationships
+  source        Source @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  contents      Content[]
+  ingestionJobs IngestionJob[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([sourceId])
+  @@index([tags])
+  @@index([score])
+  @@index([isAnswered])
+  @@index([ingestionStatus])
+  @@index([lastIngestionAt])
+  @@map("questions")
+}
+
+// Enhanced Content model - Phase 2
+model Content {
+  id          String      @id @default(cuid())
+  
+  // Content metadata
+  title       String
+  content     String      @db.Text // Raw content
+  contentType ContentType
+  language    String?     // Programming language
+  
+  // File-specific metadata (for GitHub content)
+  filePath    String?     // File path in repository
+  fileName    String?     // File name
+  fileSize    Int?        // Size in bytes
+  downloadUrl String?     // Raw download URL
+  
+  // StackOverflow-specific metadata
+  isAnswer    Boolean     @default(false)
+  isAccepted  Boolean     @default(false)
+  score       Int?        // Answer score
+  
+  // Content fingerprinting for deduplication
+  contentHash String      @unique // SHA256 hash of content
+  
+  // Processing metadata
+  processedAt    DateTime?
+  processingError String?
+  
+  // Content statistics
+  chunkCount     Int @default(0)
+  embeddingCount Int @default(0)
+  
+  // Foreign keys (one-to-many relationships)
+  repositoryId String?
+  questionId   String?
+  
+  // Relationships
+  repository Repository? @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  question   Question?   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  chunks     ContentChunk[]
+  embeddings Embedding[]
+  favorites  Favorite[]
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  @@index([contentType])
+  @@index([language])
+  @@index([contentHash])
+  @@index([repositoryId])
+  @@index([questionId])
+  @@index([processedAt])
+  @@map("contents")
+}
+
+// Enhanced Content chunks - Phase 2
 model ContentChunk {
-  id         String                     @id @default(cuid())
-  contentId  String
-  text       String                     @db.Text
-  startIndex Int
-  endIndex   Int
-  tokens     Int
-  embedding  Unsupported("vector(1536)")?  // OpenAI text-embedding-3-small dimension
-  createdAt  DateTime                   @default(now())
-
-  // Relations
+  id        String @id @default(cuid())
+  contentId String
+  
+  // Chunk metadata
+  chunkText String    // The actual text chunk
+  chunkHash String    @unique // SHA256 hash for deduplication
+  sequence  Int       // Order within the content
+  
+  // Chunk boundaries
+  startLine Int?      // Starting line number
+  endLine   Int?      // Ending line number
+  startChar Int?      // Starting character position
+  endChar   Int?      // Ending character position
+  
+  // Embedding metadata
+  embeddingStatus EmbeddingStatus @default(PENDING)
+  embeddingError  String?
+  embeddedAt      DateTime?
+  
+  // Token information for cost tracking
+  tokenCount      Int?
+  
+  // Relationships
   content    Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
-
+  embeddings Embedding[]
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
   @@index([contentId])
+  @@index([chunkHash])
+  @@index([embeddingStatus])
+  @@index([sequence])
   @@map("content_chunks")
 }
 
+// Vector embeddings - Phase 2
+model Embedding {
+  id      String @id @default(cuid())
+  
+  // Embedding metadata
+  vector     Unsupported("vector(1536)") // Vector embedding using pgvector
+  dimensions Int          @default(1536) // Vector dimensions
+  model      String       // Embedding model used (e.g., 'text-embedding-3-small')
+  
+  // Cost tracking
+  tokenCount Int?         // Tokens used for generation
+  cost       Decimal?     // Cost in USD
+  
+  // Foreign keys (content can have embeddings, chunks have embeddings)
+  contentId      String?
+  contentChunkId String?
+  
+  // Relationships  
+  content      Content?      @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  contentChunk ContentChunk? @relation(fields: [contentChunkId], references: [id], onDelete: Cascade)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([contentId])
+  @@index([contentChunkId])
+  @@index([model])
+  @@index([dimensions])
+  @@map("embeddings")
+}
+
+// Enhanced Ingestion job tracking - Phase 2
+model IngestionJob {
+  id          String @id @default(cuid())
+  
+  // Job metadata
+  jobType     IngestionJobType
+  status      JobStatus @default(PENDING)
+  priority    Int       @default(5) // 1-10, higher = more priority
+  
+  // Job data and configuration
+  jobData     Json      // Job-specific data
+  config      Json?     // Job configuration
+  
+  // Progress tracking
+  totalItems    Int?    // Total items to process
+  processedItems Int @default(0) // Items processed so far
+  failedItems   Int @default(0) // Items that failed
+  
+  // Execution metadata
+  startedAt     DateTime?
+  completedAt   DateTime?
+  error         String?
+  retryCount    Int @default(0)
+  maxRetries    Int @default(3)
+  
+  // Foreign keys
+  sourceId      String?
+  repositoryId  String?
+  questionId    String?
+  
+  // Relationships
+  source       Source?     @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  repository   Repository? @relation(fields: [repositoryId], references: [id], onDelete: SetNull)
+  question     Question?   @relation(fields: [questionId], references: [id], onDelete: SetNull)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([jobType])
+  @@index([status])
+  @@index([priority])
+  @@index([sourceId])
+  @@index([repositoryId])
+  @@index([questionId])
+  @@index([createdAt])
+  @@map("ingestion_jobs")
+}
+
+// Search history (from Phase 1)
 model Search {
   id         String   @id @default(cuid())
   userId     String?
@@ -92,6 +348,7 @@ model Search {
   @@map("searches")
 }
 
+// User favorites (from Phase 1)
 model Favorite {
   id        String   @id @default(cuid())
   userId    String
@@ -106,21 +363,52 @@ model Favorite {
   @@map("favorites")
 }
 
-model IngestionJob {
-  id          String   @id @default(cuid())
-  type        String   // github, stackoverflow
-  source      String   // repo URL or stackoverflow tag
-  status      String   @default("pending") // pending, running, completed, failed
-  progress    Int      @default(0) // 0-100
-  itemsTotal  Int      @default(0)
-  itemsDone   Int      @default(0)
-  error       String?  @db.Text
-  metadata    Json?    // Store job-specific metadata
-  createdAt   DateTime @default(now())
-  startedAt   DateTime?
-  completedAt DateTime?
+// Enums for Phase 2
+enum SourceType {
+  GITHUB
+  STACKOVERFLOW
+  DOCUMENTATION
+  BLOG
+}
 
-  @@index([status, type])
-  @@index([createdAt])
-  @@map("ingestion_jobs")
+enum ContentType {
+  REPOSITORY_FILE
+  STACKOVERFLOW_QUESTION
+  STACKOVERFLOW_ANSWER
+  DOCUMENTATION_PAGE
+  BLOG_POST
+}
+
+enum IngestionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+enum EmbeddingStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum JobStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+  RETRYING
+}
+
+enum IngestionJobType {
+  GITHUB_DISCOVER_REPOSITORIES
+  GITHUB_INGEST_REPOSITORY
+  GITHUB_PROCESS_CONTENT
+  STACKOVERFLOW_DISCOVER_QUESTIONS
+  STACKOVERFLOW_INGEST_QUESTION
+  GENERATE_EMBEDDINGS
+  CHUNK_CONTENT
 }
