@@ -1,6 +1,33 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { Injectable, Logger } from '@nestjs/common';
 import { Worker, Job } from 'bullmq';
-import { QueueService, JobType } from '../services/queue.service';
+import {
+  QueueService,
+  JobType,
+  GitHubDiscoverJobData,
+} from '../services/queue.service';
+import { GitHubApiService } from '../services/github-api.service';
+import { PrismaService } from '../services/prisma.service';
+
+// Worker result interfaces
+interface ProcessedRepository {
+  action: 'created' | 'updated';
+  repository: any;
+}
+
+interface DiscoveryResult {
+  success: boolean;
+  discovered: number;
+  processed: number;
+  repositories: ProcessedRepository[];
+  rateLimit: any;
+}
 
 @Injectable()
 export abstract class BaseWorker {
@@ -10,7 +37,7 @@ export abstract class BaseWorker {
   constructor(
     protected queueService: QueueService,
     protected queueName: string,
-    protected concurrency: number = 5
+    protected concurrency: number = 5,
   ) {
     this.initializeWorker();
   }
@@ -32,7 +59,7 @@ export abstract class BaseWorker {
       {
         connection: this.queueService.getRedisConnection(),
         concurrency: this.concurrency,
-      }
+      },
     );
 
     this.worker.on('completed', (job) => {
@@ -72,7 +99,11 @@ export abstract class BaseWorker {
 // GitHub Discovery Worker
 @Injectable()
 export class GitHubDiscoveryWorker extends BaseWorker {
-  constructor(queueService: QueueService) {
+  constructor(
+    queueService: QueueService,
+    private readonly githubApiService: GitHubApiService,
+    private readonly prismaService: PrismaService,
+  ) {
     super(queueService, 'github-discovery', 2); // Lower concurrency for API limits
   }
 
@@ -88,17 +119,161 @@ export class GitHubDiscoveryWorker extends BaseWorker {
   }
 
   private async discoverRepositories(data: any): Promise<any> {
-    this.logger.log(`Discovering repositories for language: ${data.language}`);
-    
-    // TODO: Implement GitHub API integration
-    // This will be implemented in the GitHub API service
-    
-    // Placeholder implementation
-    return {
-      language: data.language,
-      repositoriesFound: 0,
-      message: 'GitHub discovery worker - implementation pending'
-    };
+    this.logger.log(
+      `Discovering GitHub repositories with criteria: ${JSON.stringify(data)}`,
+    );
+
+    const { language, minStars = 100, maxResults = 50, query } = data;
+
+    try {
+      // Check rate limit before making requests
+      const canProceed = await this.githubApiService.checkRateLimit(5);
+      if (!canProceed) {
+        throw new Error('GitHub rate limit exceeded - postponing discovery');
+      }
+
+      // Search repositories using GitHub API
+      let searchResult;
+      if (query) {
+        // Custom query search
+        const searchQuery = `${query} language:${language} stars:>=${minStars} is:public archived:false`;
+        searchResult = await this.githubApiService.searchRepositories({
+          query: searchQuery,
+          sort: 'stars',
+          order: 'desc',
+          perPage: Math.min(maxResults, 100),
+        });
+      } else {
+        // Language-based search
+        searchResult = await this.githubApiService.searchRepositoriesByLanguage(
+          language,
+          minStars,
+          maxResults,
+        );
+      }
+
+      // Get GitHub source record
+      const githubSource = await this.prismaService.source.findUnique({
+        where: { name: 'github' },
+      });
+
+      if (!githubSource) {
+        throw new Error('GitHub source not found in database');
+      }
+
+      // Process discovered repositories
+      const processedRepos: Array<{ action: string; repository: any }> = [];
+      for (const repo of searchResult.items) {
+        try {
+          // Check if repository already exists
+          const existingRepo = await this.prismaService.repository.findUnique({
+            where: { githubId: repo.id },
+          });
+
+          if (existingRepo) {
+            // Update existing repository metadata
+            const updatedRepo = await this.prismaService.repository.update({
+              where: { githubId: repo.id },
+              data: {
+                name: repo.name,
+                owner: repo.owner.login,
+                description: repo.description,
+                starCount: repo.stargazersCount,
+                forkCount: repo.forksCount,
+                language: repo.language,
+                size: repo.size,
+                htmlUrl: repo.htmlUrl,
+                cloneUrl: repo.cloneUrl,
+                defaultBranch: repo.defaultBranch,
+                updatedAt: new Date(),
+              },
+            });
+            processedRepos.push({ action: 'updated', repository: updatedRepo });
+          } else {
+            // Create new repository record
+            const newRepo = await this.prismaService.repository.create({
+              data: {
+                sourceId: githubSource.id,
+                githubId: repo.id,
+                fullName: repo.fullName,
+                name: repo.name,
+                owner: repo.owner.login,
+                description: repo.description,
+                starCount: repo.stargazersCount,
+                forkCount: repo.forksCount,
+                language: repo.language,
+                size: repo.size,
+                htmlUrl: repo.htmlUrl,
+                cloneUrl: repo.cloneUrl,
+                defaultBranch: repo.defaultBranch,
+                ingestionStatus: 'PENDING',
+              },
+            });
+
+            // Queue repository for ingestion
+            await this.queueService.addGitHubIngestionJob(
+              {
+                owner: repo.owner.login,
+                name: repo.name,
+                fullName: repo.fullName,
+                repositoryId: newRepo.id,
+                priority: this.calculatePriority(
+                  repo.stargazersCount,
+                  repo.language,
+                ),
+              },
+              {
+                priority: this.calculatePriority(
+                  repo.stargazersCount,
+                  repo.language,
+                ),
+              },
+            );
+
+            processedRepos.push({ action: 'created', repository: newRepo });
+          }
+        } catch (error) {
+          this.logger.error(
+            `Failed to process repository ${repo.fullName}: ${error.message}`,
+          );
+        }
+      }
+
+      return {
+        success: true,
+        discovered: searchResult.totalCount,
+        processed: processedRepos.length,
+        repositories: processedRepos,
+        rateLimit: searchResult.rateLimit,
+      };
+    } catch (error) {
+      this.logger.error(`Repository discovery failed: ${error.message}`, error);
+      throw error;
+    }
+  }
+
+  private calculatePriority(stars: number, language: string | null): number {
+    let priority = 5; // Base priority
+
+    // Higher priority for more popular repositories
+    if (stars > 10000) priority += 3;
+    else if (stars > 1000) priority += 2;
+    else if (stars > 100) priority += 1;
+
+    // Higher priority for popular languages
+    const popularLanguages = [
+      'typescript',
+      'javascript',
+      'python',
+      'java',
+      'go',
+      'rust',
+    ];
+    if (language && popularLanguages.includes(language.toLowerCase())) {
+      priority += 1;
+    }
+
+    return Math.min(priority, 10); // Cap at 10
   }
 }
 
@@ -122,18 +297,18 @@ export class GitHubIngestionWorker extends BaseWorker {
 
   private async ingestRepository(data: any): Promise<any> {
     this.logger.log(`Ingesting repository: ${data.fullName}`);
-    
+
     // TODO: Implement repository ingestion
     // 1. Fetch repository metadata
     // 2. Get file tree
     // 3. Create file processing jobs
     // 4. Update ingestion status
-    
+
     return {
       repositoryId: data.repositoryId,
       filesProcessed: 0,
       status: 'completed',
-      message: 'GitHub ingestion worker - implementation pending'
+      message: 'GitHub ingestion worker - implementation pending',
     };
   }
 }
@@ -158,30 +333,30 @@ export class GitHubProcessingWorker extends BaseWorker {
 
   private async processContent(data: any): Promise<any> {
     this.logger.log(`Processing GitHub content: ${data.contentId}`);
-    
+
     // TODO: Implement content processing logic
     // This will parse and structure the raw content from GitHub
     return {
       success: true,
-      message: 'GitHub content processing worker - implementation pending'
+      message: 'GitHub content processing worker - implementation pending',
     };
   }
 
   private async processFile(data: any): Promise<any> {
     this.logger.log(`Processing file: ${data.filePath}`);
-    
+
     // TODO: Implement file processing
     // 1. Download file content
     // 2. Detect language and validate
     // 3. Create content record
     // 4. Create chunking job
-    
+
     return {
       fileId: data.fileId,
       contentId: 'generated-content-id',
       chunks: 0,
       status: 'processed',
-      message: 'GitHub file processing worker - implementation pending'
+      message: 'GitHub file processing worker - implementation pending',
     };
   }
 }
@@ -205,14 +380,16 @@ export class StackOverflowDiscoveryWorker extends BaseWorker {
   }
 
   private async discoverQuestions(data: any): Promise<any> {
-    this.logger.log(`Discovering StackOverflow questions for tags: ${data.tags.join(', ')}`);
-    
+    this.logger.log(
+      `Discovering StackOverflow questions for tags: ${data.tags.join(', ')}`,
+    );
+
     // TODO: Implement StackOverflow API integration
-    
+
     return {
       tags: data.tags,
       questionsFound: 0,
-      message: 'StackOverflow discovery worker - implementation pending'
+      message: 'StackOverflow discovery worker - implementation pending',
     };
   }
 }
@@ -237,18 +414,18 @@ export class StackOverflowIngestionWorker extends BaseWorker {
 
   private async ingestQuestion(data: any): Promise<any> {
     this.logger.log(`Ingesting StackOverflow question: ${data.questionId}`);
-    
+
     // TODO: Implement question ingestion
     // 1. Fetch question and answers
     // 2. Extract code snippets
     // 3. Create content records
     // 4. Create chunking jobs
-    
+
     return {
       questionId: data.questionId,
       answersProcessed: 0,
       status: 'completed',
-      message: 'StackOverflow ingestion worker - implementation pending'
+      message: 'StackOverflow ingestion worker - implementation pending',
     };
   }
 }
@@ -273,17 +450,17 @@ export class ContentChunkingWorker extends BaseWorker {
 
   private async chunkContent(data: any): Promise<any> {
     this.logger.log(`Chunking content: ${data.contentId}`);
-    
+
     // TODO: Implement content chunking
     // 1. Load content from database
     // 2. Apply language-aware chunking
     // 3. Create content chunks
     // 4. Create embedding generation jobs
-    
+
     return {
       contentId: data.contentId,
       chunksCreated: 0,
-      message: 'Content chunking worker - implementation pending'
+      message: 'Content chunking worker - implementation pending',
     };
   }
 }
@@ -307,18 +484,20 @@ export class EmbeddingGenerationWorker extends BaseWorker {
   }
 
   private async generateEmbeddings(data: any): Promise<any> {
-    this.logger.log(`Generating embeddings for ${data.contentChunkIds.length} chunks`);
-    
+    this.logger.log(
+      `Generating embeddings for ${data.contentChunkIds.length} chunks`,
+    );
+
     // TODO: Implement embedding generation
     // 1. Load content chunks
     // 2. Call OpenAI API in batches
     // 3. Store embeddings in database
     // 4. Update chunk status
-    
+
     return {
       processedChunks: data.contentChunkIds.length,
       embeddingsGenerated: 0,
-      message: 'Embedding generation worker - implementation pending'
+      message: 'Embedding generation worker - implementation pending',
     };
   }
 }

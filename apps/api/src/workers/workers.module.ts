@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { QueueService } from '../services/queue.service';
+import { GitHubApiService } from '../services/github-api.service';
+import { PrismaService } from '../services/prisma.service';
 import {
   GitHubDiscoveryWorker,
   GitHubIngestionWorker,
@@ -12,11 +14,9 @@ import {
 
 /**
  * Workers Module
- * 
  * This module provides all the background workers for content ingestion,
  * processing, and embedding generation. It integrates with the BullMQ
  * job queue system and Redis for distributed processing.
- * 
  * Workers included:
  * - GitHubDiscoveryWorker: Discovers GitHub repositories
  * - GitHubIngestionWorker: Ingests repository content
@@ -29,6 +29,8 @@ import {
 @Module({
   providers: [
     QueueService,
+    GitHubApiService,
+    PrismaService,
     GitHubDiscoveryWorker,
     GitHubIngestionWorker,
     GitHubProcessingWorker,
@@ -39,6 +41,8 @@ import {
   ],
   exports: [
     QueueService,
+    GitHubApiService,
+    PrismaService,
     GitHubDiscoveryWorker,
     GitHubIngestionWorker,
     GitHubProcessingWorker,
@@ -82,7 +86,7 @@ export class WorkersModule {
     await Promise.all(
       workers.map(async (worker) => {
         await worker.close();
-      })
+      }),
     );
 
     console.log('All workers shut down gracefully');
