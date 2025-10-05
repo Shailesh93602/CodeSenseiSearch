@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
 import { QueueService } from '../services/queue.service';
 import { GitHubApiService } from '../services/github-api.service';
+import { StackOverflowApiService } from '../services/stackoverflow-api.service';
 import { PrismaService } from '../services/prisma.service';
+import { GeminiService } from '../services/gemini.service';
+import { VectorService } from '../services/vector.service';
 import {
   GitHubDiscoveryWorker,
   GitHubIngestionWorker,
@@ -24,13 +27,16 @@ import {
  * - StackOverflowDiscoveryWorker: Discovers StackOverflow questions
  * - StackOverflowIngestionWorker: Ingests question and answer content
  * - ContentChunkingWorker: Chunks content for embedding generation
- * - EmbeddingGenerationWorker: Generates vector embeddings using OpenAI
+ * - EmbeddingGenerationWorker: Generates vector embeddings using Gemini
  */
 @Module({
   providers: [
     QueueService,
     GitHubApiService,
+    StackOverflowApiService,
     PrismaService,
+    GeminiService,
+    VectorService,
     GitHubDiscoveryWorker,
     GitHubIngestionWorker,
     GitHubProcessingWorker,
@@ -42,7 +48,10 @@ import {
   exports: [
     QueueService,
     GitHubApiService,
+    StackOverflowApiService,
     PrismaService,
+    GeminiService,
+    VectorService,
     GitHubDiscoveryWorker,
     GitHubIngestionWorker,
     GitHubProcessingWorker,
