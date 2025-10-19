@@ -846,6 +846,7 @@ func main() {
 ];
 
 // Filter functions for search
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function filterResults(results: SearchResult[], query: string, filters: any): SearchResult[] {
   return results.filter(result => {
     // Text search
