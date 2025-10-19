@@ -49,6 +49,7 @@ export interface StackOverflowDiscoverJobData {
 
 export interface StackOverflowIngestQuestionJobData {
   questionId: number;
+  contentId: string;
   priority: number;
 }
 
@@ -60,9 +61,8 @@ export interface GenerateEmbeddingsJobData {
 
 export interface ChunkContentJobData {
   contentId: string;
-  content: string;
-  language: string;
-  maxTokens: number;
+  chunkSize?: number;
+  overlap?: number;
 }
 
 // Queue Configuration
@@ -103,12 +103,12 @@ export class QueueService {
       password: this.configService.get('REDIS_PASSWORD'),
       db: this.configService.get('REDIS_DB', 0),
       retryDelayOnFailover: 100,
-      maxRetriesPerRequest: 3,
+      maxRetriesPerRequest: null, // Required for BullMQ
       lazyConnect: true,
     };
 
     this.redis = new Redis(redisConfig);
-    
+
     this.redis.on('connect', () => {
       this.logger.log('Connected to Redis');
     });
@@ -143,7 +143,7 @@ export class QueueService {
       'content-chunking',
     ];
 
-    queueNames.forEach(queueName => {
+    queueNames.forEach((queueName) => {
       const queue = new Queue(queueName, queueConfig);
       this.queues.set(queueName, queue);
       this.logger.log(`Initialized queue: ${queueName}`);
@@ -153,7 +153,7 @@ export class QueueService {
   // GitHub Discovery Jobs
   async addGitHubDiscoveryJob(
     data: GitHubDiscoverJobData,
-    options?: { priority?: number; delay?: number }
+    options?: { priority?: number; delay?: number },
   ): Promise<Job> {
     const queue = this.queues.get('github-discovery');
     if (!queue) {
@@ -168,7 +168,7 @@ export class QueueService {
   // GitHub Repository Ingestion Jobs
   async addGitHubIngestionJob(
     data: GitHubIngestRepositoryJobData,
-    options?: { priority?: number; delay?: number }
+    options?: { priority?: number; delay?: number },
   ): Promise<Job> {
     const queue = this.queues.get('github-ingestion');
     if (!queue) {
@@ -183,7 +183,7 @@ export class QueueService {
   // GitHub File Processing Jobs
   async addGitHubFileProcessingJob(
     data: GitHubProcessFileJobData,
-    options?: { priority?: number; delay?: number }
+    options?: { priority?: number; delay?: number },
   ): Promise<Job> {
     const queue = this.queues.get('github-processing');
     if (!queue) {
@@ -198,7 +198,7 @@ export class QueueService {
   // StackOverflow Discovery Jobs
   async addStackOverflowDiscoveryJob(
     data: StackOverflowDiscoverJobData,
-    options?: { priority?: number; delay?: number }
+    options?: { priority?: number; delay?: number },
   ): Promise<Job> {
     const queue = this.queues.get('stackoverflow-discovery');
     if (!queue) {
@@ -213,7 +213,7 @@ export class QueueService {
   // StackOverflow Question Ingestion Jobs
   async addStackOverflowIngestionJob(
     data: StackOverflowIngestQuestionJobData,
-    options?: { priority?: number; delay?: number }
+    options?: { priority?: number; delay?: number },
   ): Promise<Job> {
     const queue = this.queues.get('stackoverflow-ingestion');
     if (!queue) {
@@ -228,7 +228,7 @@ export class QueueService {
   // Embedding Generation Jobs
   async addEmbeddingGenerationJob(
     data: GenerateEmbeddingsJobData,
-    options?: { priority?: number; delay?: number }
+    options?: { priority?: number; delay?: number },
   ): Promise<Job> {
     const queue = this.queues.get('embedding-generation');
     if (!queue) {
@@ -243,7 +243,7 @@ export class QueueService {
   // Content Chunking Jobs
   async addContentChunkingJob(
     data: ChunkContentJobData,
-    options?: { priority?: number; delay?: number }
+    options?: { priority?: number; delay?: number },
   ): Promise<Job> {
     const queue = this.queues.get('content-chunking');
     if (!queue) {
@@ -282,9 +282,9 @@ export class QueueService {
 
   async getAllQueuesStatus() {
     const statuses = await Promise.all(
-      Array.from(this.queues.keys()).map(queueName => 
-        this.getQueueStatus(queueName)
-      )
+      Array.from(this.queues.keys()).map((queueName) =>
+        this.getQueueStatus(queueName),
+      ),
     );
     return statuses;
   }
@@ -307,11 +307,14 @@ export class QueueService {
     this.logger.log(`Resumed queue: ${queueName}`);
   }
 
-  async cleanQueue(queueName: string, options: {
-    grace?: number;
-    count?: number;
-    type?: 'completed' | 'failed' | 'active' | 'waiting';
-  } = {}) {
+  async cleanQueue(
+    queueName: string,
+    options: {
+      grace?: number;
+      count?: number;
+      type?: 'completed' | 'failed' | 'active' | 'waiting';
+    } = {},
+  ) {
     const queue = this.queues.get(queueName);
     if (!queue) {
       throw new Error(`Queue ${queueName} not found`);
@@ -320,9 +323,9 @@ export class QueueService {
     await queue.clean(
       options.grace || 24 * 60 * 60 * 1000, // 24 hours default
       options.count || 100,
-      options.type || 'completed'
+      options.type || 'completed',
     );
-    
+
     this.logger.log(`Cleaned queue: ${queueName}`);
   }
 
@@ -345,7 +348,7 @@ export class QueueService {
   // Graceful shutdown
   async shutdown() {
     this.logger.log('Shutting down queue service...');
-    
+
     // Close all workers
     for (const [name, worker] of this.workers) {
       await worker.close();

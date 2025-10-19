@@ -23,6 +23,14 @@ module.exports = {
         '@typescript-eslint/no-non-null-assertion': 'warn',
         'prefer-const': 'error',
         'no-var': 'error',
+
+        // Disable overly strict rules for API data handling
+        '@typescript-eslint/no-unsafe-member-access': 'off',
+        '@typescript-eslint/no-unsafe-assignment': 'off',
+        '@typescript-eslint/no-unsafe-call': 'off',
+        '@typescript-eslint/no-unsafe-return': 'off',
+        '@typescript-eslint/no-unsafe-argument': 'off',
+        '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
     },
     ignorePatterns: [
         'dist/',

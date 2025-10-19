@@ -5,11 +5,11 @@ import { Octokit } from '@octokit/rest';
 
 /**
  * GitHub API Service
- * 
+ *
  * Provides comprehensive GitHub API integration using GraphQL v4 and REST v3.
  * Implements rate limiting, error handling, and efficient data fetching for
  * repository discovery and content ingestion.
- * 
+ *
  * Key Features:
  * - Repository search and discovery
  * - Content fetching with pagination
@@ -111,9 +111,11 @@ export class GitHubApiService {
 
   constructor(private readonly configService: ConfigService) {
     this.authToken = this.configService.get<string>('GITHUB_TOKEN') || '';
-    
+
     if (!this.authToken) {
-      this.logger.warn('GitHub token not configured - API requests will be limited');
+      this.logger.warn(
+        'GitHub token not configured - API requests will be limited',
+      );
     }
 
     // Initialize GraphQL client
@@ -137,10 +139,20 @@ export class GitHubApiService {
    * Search repositories using GitHub's powerful search API
    * Combines multiple criteria for optimal discovery
    */
-  async searchRepositories(options: GitHubSearchOptions): Promise<GitHubRepositorySearchResult> {
-    const { query, sort = 'stars', order = 'desc', perPage = 30, page = 1 } = options;
-    
-    this.logger.log(`Searching repositories: "${query}" (${sort} ${order}, page ${page})`);
+  async searchRepositories(
+    options: GitHubSearchOptions,
+  ): Promise<GitHubRepositorySearchResult> {
+    const {
+      query,
+      sort = 'stars',
+      order = 'desc',
+      perPage = 30,
+      page = 1,
+    } = options;
+
+    this.logger.log(
+      `Searching repositories: "${query}" (${sort} ${order}, page ${page})`,
+    );
 
     try {
       const response = await this.withRetry(async () => {
@@ -153,43 +165,47 @@ export class GitHubApiService {
         });
       });
 
-      const repositories: GitHubRepository[] = response.data.items.map(item => ({
-        id: item.id,
-        nodeId: item.node_id,
-        name: item.name,
-        fullName: item.full_name,
-        owner: {
-          login: item.owner?.login || '',
-          id: item.owner?.id || 0,
-          type: item.owner?.type || '',
-        },
-        description: item.description,
-        isPrivate: item.private,
-        htmlUrl: item.html_url,
-        cloneUrl: item.clone_url,
-        sshUrl: item.ssh_url,
-        stargazersCount: item.stargazers_count,
-        forksCount: item.forks_count,
-        language: item.language,
-        size: item.size,
-        defaultBranch: item.default_branch,
-        topics: item.topics || [],
-        createdAt: item.created_at,
-        updatedAt: item.updated_at,
-        pushedAt: item.pushed_at,
-        hasIssues: item.has_issues,
-        hasProjects: item.has_projects,
-        hasWiki: item.has_wiki,
-        hasPages: item.has_pages,
-        hasDownloads: item.has_downloads,
-        archived: item.archived,
-        disabled: item.disabled,
-        license: item.license ? {
-          key: item.license.key,
-          name: item.license.name,
-          spdxId: item.license.spdx_id,
-        } : null,
-      }));
+      const repositories: GitHubRepository[] = response.data.items.map(
+        (item) => ({
+          id: item.id,
+          nodeId: item.node_id,
+          name: item.name,
+          fullName: item.full_name,
+          owner: {
+            login: item.owner?.login || '',
+            id: item.owner?.id || 0,
+            type: item.owner?.type || '',
+          },
+          description: item.description,
+          isPrivate: item.private,
+          htmlUrl: item.html_url,
+          cloneUrl: item.clone_url,
+          sshUrl: item.ssh_url,
+          stargazersCount: item.stargazers_count,
+          forksCount: item.forks_count,
+          language: item.language,
+          size: item.size,
+          defaultBranch: item.default_branch,
+          topics: item.topics || [],
+          createdAt: item.created_at,
+          updatedAt: item.updated_at,
+          pushedAt: item.pushed_at,
+          hasIssues: item.has_issues,
+          hasProjects: item.has_projects,
+          hasWiki: item.has_wiki,
+          hasPages: item.has_pages,
+          hasDownloads: item.has_downloads,
+          archived: item.archived,
+          disabled: item.disabled,
+          license: item.license
+            ? {
+                key: item.license.key,
+                name: item.license.name,
+                spdxId: item.license.spdx_id,
+              }
+            : null,
+        }),
+      );
 
       const rateLimit = await this.getRateLimit();
 
@@ -199,7 +215,6 @@ export class GitHubApiService {
         items: repositories,
         rateLimit,
       };
-
     } catch (error) {
       this.logger.error(`Repository search failed: ${error.message}`, error);
       throw new Error(`GitHub repository search failed: ${error.message}`);
@@ -313,15 +328,19 @@ export class GitHubApiService {
         hasDownloads: false, // Not available in GraphQL
         archived: repo.isArchived,
         disabled: repo.isDisabled,
-        license: repo.licenseInfo ? {
-          key: repo.licenseInfo.key,
-          name: repo.licenseInfo.name,
-          spdxId: repo.licenseInfo.spdxId,
-        } : null,
+        license: repo.licenseInfo
+          ? {
+              key: repo.licenseInfo.key,
+              name: repo.licenseInfo.name,
+              spdxId: repo.licenseInfo.spdxId,
+            }
+          : null,
       };
-
     } catch (error) {
-      this.logger.error(`Failed to fetch repository ${owner}/${name}: ${error.message}`, error);
+      this.logger.error(
+        `Failed to fetch repository ${owner}/${name}: ${error.message}`,
+        error,
+      );
       throw new Error(`GitHub repository fetch failed: ${error.message}`);
     }
   }
@@ -333,9 +352,11 @@ export class GitHubApiService {
     owner: string,
     repo: string,
     path: string = '',
-    ref: string = 'main'
+    ref: string = 'main',
   ): Promise<GitHubContentFetchResult> {
-    this.logger.log(`Fetching contents: ${owner}/${repo}/${path} (ref: ${ref})`);
+    this.logger.log(
+      `Fetching contents: ${owner}/${repo}/${path} (ref: ${ref})`,
+    );
 
     try {
       const response = await this.withRetry(async () => {
@@ -353,19 +374,21 @@ export class GitHubApiService {
       if (!Array.isArray(response.data)) {
         const file = response.data as any;
         return {
-          files: [{
-            name: file.name,
-            path: file.path,
-            sha: file.sha,
-            size: file.size,
-            url: file.url,
-            htmlUrl: file.html_url,
-            gitUrl: file.git_url,
-            downloadUrl: file.download_url,
-            type: file.type,
-            content: file.content,
-            encoding: file.encoding,
-          }],
+          files: [
+            {
+              name: file.name,
+              path: file.path,
+              sha: file.sha,
+              size: file.size,
+              url: file.url,
+              htmlUrl: file.html_url,
+              gitUrl: file.git_url,
+              downloadUrl: file.download_url,
+              type: file.type,
+              content: file.content,
+              encoding: file.encoding,
+            },
+          ],
           totalFiles: 1,
           rateLimit,
         };
@@ -389,10 +412,65 @@ export class GitHubApiService {
         totalFiles: files.length,
         rateLimit,
       };
-
     } catch (error) {
-      this.logger.error(`Failed to fetch contents for ${owner}/${repo}/${path}: ${error.message}`, error);
+      this.logger.error(
+        `Failed to fetch contents for ${owner}/${repo}/${path}: ${error.message}`,
+        error,
+      );
       throw new Error(`GitHub content fetch failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get repository tree recursively
+   */
+  async getRepositoryTree(
+    owner: string,
+    repo: string,
+    branch: string = 'main',
+    maxFiles: number = 1000,
+  ): Promise<GitHubFile[]> {
+    this.logger.log(
+      `Fetching repository tree: ${owner}/${repo} (branch: ${branch})`,
+    );
+
+    try {
+      // Use GitHub Tree API for efficient recursive fetching
+      const response = await this.withRetry(async () => {
+        return await this.restClient.git.getTree({
+          owner,
+          repo,
+          tree_sha: branch,
+          recursive: 'true',
+        });
+      });
+
+      const tree = response.data.tree;
+      const files: GitHubFile[] = tree
+        .filter((item: any) => item.type === 'blob') // Only files, not directories
+        .slice(0, maxFiles) // Limit number of files to prevent overwhelming
+        .map((item: any) => ({
+          name: item.path.split('/').pop() || item.path,
+          path: item.path,
+          sha: item.sha,
+          size: item.size,
+          url: item.url,
+          htmlUrl: `https://github.com/${owner}/${repo}/blob/${branch}/${item.path}`,
+          gitUrl: item.url,
+          downloadUrl: `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${item.path}`,
+          type: 'file',
+        }));
+
+      this.logger.log(
+        `Retrieved ${files.length} files from ${owner}/${repo} tree`,
+      );
+      return files;
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch repository tree for ${owner}/${repo}: ${error.message}`,
+        error,
+      );
+      throw new Error(`GitHub tree fetch failed: ${error.message}`);
     }
   }
 
@@ -413,11 +491,13 @@ export class GitHubApiService {
 
       const content = await response.text();
       this.logger.log(`Fetched ${content.length} characters`);
-      
-      return content;
 
+      return content;
     } catch (error) {
-      this.logger.error(`Failed to fetch file content: ${error.message}`, error);
+      this.logger.error(
+        `Failed to fetch file content: ${error.message}`,
+        error,
+      );
       throw new Error(`File content fetch failed: ${error.message}`);
     }
   }
@@ -437,7 +517,6 @@ export class GitHubApiService {
         used: coreLimit.used,
         resource: 'core',
       };
-
     } catch (error) {
       this.logger.error(`Failed to fetch rate limit: ${error.message}`, error);
       // Return conservative defaults on error
@@ -457,10 +536,10 @@ export class GitHubApiService {
   async searchRepositoriesByLanguage(
     language: string,
     minStars: number = 100,
-    maxResults: number = 100
+    maxResults: number = 100,
   ): Promise<GitHubRepositorySearchResult> {
     const query = `language:${language} stars:>=${minStars} is:public archived:false`;
-    
+
     return this.searchRepositories({
       query,
       sort: 'stars',
@@ -476,10 +555,10 @@ export class GitHubApiService {
   async searchRepositoriesByTopic(
     topic: string,
     minStars: number = 50,
-    maxResults: number = 100
+    maxResults: number = 100,
   ): Promise<GitHubRepositorySearchResult> {
     const query = `topic:${topic} stars:>=${minStars} is:public archived:false`;
-    
+
     return this.searchRepositories({
       query,
       sort: 'stars',
@@ -495,12 +574,14 @@ export class GitHubApiService {
   async checkRateLimit(requiredRequests: number = 1): Promise<boolean> {
     const rateLimit = await this.getRateLimit();
     const canProceed = rateLimit.remaining >= requiredRequests;
-    
+
     if (!canProceed) {
       const resetTime = new Date(rateLimit.reset * 1000);
-      this.logger.warn(`Rate limit exceeded. Reset at: ${resetTime.toISOString()}`);
+      this.logger.warn(
+        `Rate limit exceeded. Reset at: ${resetTime.toISOString()}`,
+      );
     }
-    
+
     return canProceed;
   }
 
@@ -518,18 +599,22 @@ export class GitHubApiService {
 
         // Don't retry for certain error types
         if (error && typeof error === 'object' && 'status' in error) {
-          const status = (error as any).status;
+          const status = error.status;
           if (status === 401 || status === 403 || status === 404) {
             throw error;
           }
 
           // Handle rate limiting
           if (status === 429) {
-            const response = (error as any).response;
+            const response = error.response;
             const retryAfter = response?.headers?.['retry-after'];
-            const delayMs = retryAfter ? parseInt(retryAfter) * 1000 : this.baseRetryDelay * Math.pow(2, attempt);
-            
-            this.logger.warn(`Rate limited, retrying in ${delayMs}ms (attempt ${attempt}/${this.maxRetries})`);
+            const delayMs = retryAfter
+              ? parseInt(retryAfter) * 1000
+              : this.baseRetryDelay * Math.pow(2, attempt);
+
+            this.logger.warn(
+              `Rate limited, retrying in ${delayMs}ms (attempt ${attempt}/${this.maxRetries})`,
+            );
             await this.delay(delayMs);
             continue;
           }
@@ -540,7 +625,9 @@ export class GitHubApiService {
         }
 
         const delayMs = this.baseRetryDelay * Math.pow(2, attempt - 1);
-        this.logger.warn(`Request failed, retrying in ${delayMs}ms (attempt ${attempt}/${this.maxRetries}): ${(error as Error).message}`);
+        this.logger.warn(
+          `Request failed, retrying in ${delayMs}ms (attempt ${attempt}/${this.maxRetries}): ${(error as Error).message}`,
+        );
         await this.delay(delayMs);
       }
     }
@@ -555,7 +642,7 @@ export class GitHubApiService {
    * Simple delay utility
    */
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -564,7 +651,9 @@ export class GitHubApiService {
   async validateToken(): Promise<boolean> {
     try {
       const response = await this.restClient.users.getAuthenticated();
-      this.logger.log(`GitHub token validated for user: ${response.data.login}`);
+      this.logger.log(
+        `GitHub token validated for user: ${response.data.login}`,
+      );
       return true;
     } catch (error) {
       this.logger.error(`GitHub token validation failed: ${error.message}`);

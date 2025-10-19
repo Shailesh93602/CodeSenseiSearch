@@ -1,9 +1,8 @@
-version: '3.8'
-
 services:
   # PostgreSQL with pgvector extension
   postgres:
-    image: pgvector/pgvector:pg15
+    image: postgres:15-alpine
+    container_name: codesenseisearch-postgres
     environment:
       POSTGRES_USER: codesenseisearch
       POSTGRES_PASSWORD: devpassword
@@ -12,20 +11,23 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-vector.sql:/docker-entrypoint-initdb.d/init-vector.sql
+      - ./scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init-postgres.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U codesenseisearch -d codesenseisearch"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   # Redis for caching and job queues
   redis:
     image: redis:7-alpine
+    container_name: codesenseisearch-redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
