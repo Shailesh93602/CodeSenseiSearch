@@ -38,26 +38,25 @@ export class VectorService {
   async storeEmbedding(
     chunkId: string,
     embedding: number[],
-    metadata: {
-      repositoryId?: string;
-      questionId?: string;
-      chunkIndex?: number;
-      contentType: 'repository' | 'question';
-    },
   ): Promise<void> {
     try {
       // Convert embedding array to PostgreSQL vector format
       const vectorString = `[${embedding.join(',')}]`;
 
-      await this.prisma.$executeRawUnsafe(`
-        UPDATE "ContentChunk" 
+      await this.prisma.$executeRawUnsafe(
+        `UPDATE "ContentChunk" 
         SET embedding = $1::vector
         WHERE id = $2
-      `, vectorString, chunkId);
+      `,
+        vectorString,
+        chunkId,
+      );
 
       this.logger.debug(`Stored embedding for chunk ${chunkId}`);
     } catch (error) {
-      this.logger.error(`Failed to store embedding for chunk ${chunkId}: ${error.message}`);
+      this.logger.error(
+        `Failed to store embedding for chunk ${chunkId}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -84,12 +83,13 @@ export class VectorService {
       await this.prisma.$transaction(async (tx) => {
         for (const chunk of chunks) {
           const vectorString = `[${chunk.embedding.join(',')}]`;
-          
-          await tx.$executeRawUnsafe(`
-            UPDATE "ContentChunk" 
+          await tx.$executeRawUnsafe(
+            `UPDATE "ContentChunk" 
             SET embedding = $1::vector
-            WHERE id = $2
-          `, vectorString, chunk.chunkId);
+            WHERE id = $2`,
+            vectorString,
+            chunk.chunkId,
+          );
         }
       });
 
@@ -117,7 +117,6 @@ export class VectorService {
 
     try {
       const vectorString = `[${queryEmbedding.join(',')}]`;
-      
       // Build dynamic WHERE clause
       let whereClause = 'WHERE cc.embedding IS NOT NULL';
       const params: any[] = [vectorString, limit];
@@ -198,11 +197,12 @@ export class VectorService {
    */
   async getEmbedding(chunkId: string): Promise<number[] | null> {
     try {
-      const result = await this.prisma.$queryRawUnsafe(`
-        SELECT embedding::text as embedding_text
+      const result = await this.prisma.$queryRawUnsafe(
+        `SELECT embedding::text as embedding_text
         FROM "ContentChunk"
-        WHERE id = $1 AND embedding IS NOT NULL
-      `, chunkId);
+        WHERE id = $1 AND embedding IS NOT NULL`,
+        chunkId,
+      );
 
       if (!result || (result as any[]).length === 0) {
         return null;
@@ -210,8 +210,11 @@ export class VectorService {
 
       const embeddingText = (result as any[])[0].embedding_text;
       // Parse vector string back to array
-      const embedding = embeddingText
-        .replace(/[\[\]]/g, '')
+      // Replace regex-based removal of brackets (lint flagged) with safe slicing
+      const trimmed = (typeof embeddingText === 'string' && embeddingText.startsWith('[') && embeddingText.endsWith(']'))
+        ? embeddingText.slice(1, -1)
+        : String(embeddingText);
+      const embedding = trimmed
         .split(',')
         .map((val: string) => parseFloat(val.trim()));
 
@@ -284,7 +287,7 @@ export class VectorService {
     try {
       await this.prisma.$queryRaw`SELECT 1::vector`;
       return true;
-    } catch (error) {
+    } catch {
       this.logger.warn('pgvector extension not available');
       return false;
     }

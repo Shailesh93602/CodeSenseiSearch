@@ -7,6 +7,10 @@ import { PrismaService } from '../services/prisma.service';
 import { GeminiService } from '../services/gemini.service';
 import { VectorService } from '../services/vector.service';
 import { SearchService } from '../services/search.service';
+import { FullTextSearchService } from '../search/services/fulltext-search.service';
+import { HybridSearchService } from '../search/services/hybrid-search.service';
+import { SearchRerankerService } from '../search/services/search-reranker.service';
+import { SearchFilterService } from '../search/services/search-filter.service';
 
 @Module({
   imports: [GitHubModule, StackOverflowModule],
@@ -17,6 +21,10 @@ import { SearchService } from '../services/search.service';
     GeminiService,
     VectorService,
     SearchService,
+    FullTextSearchService,
+    HybridSearchService,
+    SearchRerankerService,
+    SearchFilterService,
   ],
 })
 export class TestModule {}

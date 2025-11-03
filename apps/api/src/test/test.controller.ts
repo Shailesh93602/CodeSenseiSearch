@@ -6,6 +6,10 @@ import { PrismaService } from '../services/prisma.service';
 import { GeminiService } from '../services/gemini.service';
 import { VectorService } from '../services/vector.service';
 import { SearchService } from '../services/search.service';
+import { FullTextSearchService } from '../search/services/fulltext-search.service';
+import { HybridSearchService } from '../search/services/hybrid-search.service';
+import { SearchRerankerService } from '../search/services/search-reranker.service';
+import { SearchFilterService } from '../search/services/search-filter.service';
 
 @Controller('test')
 export class TestController {
@@ -17,6 +21,10 @@ export class TestController {
     private readonly geminiService: GeminiService,
     private readonly vectorService: VectorService,
     private readonly searchService: SearchService,
+    private readonly fullTextSearchService: FullTextSearchService,
+    private readonly hybridSearchService: HybridSearchService,
+    private readonly searchRerankerService: SearchRerankerService,
+    private readonly searchFilterService: SearchFilterService,
   ) {}
 
   @Get('health')
@@ -593,6 +601,588 @@ export class TestController {
         success: true,
         query,
         suggestions,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  // ============ Phase 4: Full-Text Search Test Endpoints ============
+
+  @Get('search/fulltext/health')
+  async testFullTextSearchHealth() {
+    try {
+      const health = await this.fullTextSearchService.healthCheck();
+      
+      return {
+        success: true,
+        message: health.available 
+          ? 'Full-text search is ready'
+          : 'Full-text search not available',
+        health,
+        recommendation: health.available
+          ? 'Full-text search endpoints are operational'
+          : 'Run database migrations to enable full-text search',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  @Post('search/fulltext')
+  async testFullTextSearch(@Body() body: { 
+    query: string; 
+    language?: string;
+    contentType?: string;
+    repository?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    try {
+      if (!body.query || body.query.trim().length === 0) {
+        return {
+          success: false,
+          error: 'Query is required',
+        };
+      }
+
+      const result = await this.fullTextSearchService.search({
+        query: body.query,
+        language: body.language,
+        contentType: body.contentType,
+        repository: body.repository,
+        limit: body.limit ?? 10,
+        offset: body.offset ?? 0,
+      });
+
+      return {
+        success: true,
+        searchMethod: 'fulltext',
+        searchResult: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  @Post('search/fulltext/chunks')
+  async testFullTextChunkSearch(@Body() body: { 
+    query: string; 
+    limit?: number;
+    offset?: number;
+  }) {
+    try {
+      if (!body.query || body.query.trim().length === 0) {
+        return {
+          success: false,
+          error: 'Query is required',
+        };
+      }
+
+      const result = await this.fullTextSearchService.searchChunks({
+        query: body.query,
+        limit: body.limit ?? 10,
+        offset: body.offset ?? 0,
+      });
+
+      return {
+        success: true,
+        searchMethod: 'fulltext-chunks',
+        searchResult: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  @Get('search/fulltext/suggestions')
+  async testFullTextSearchSuggestions(@Query('q') query: string) {
+    try {
+      if (!query || query.trim().length < 2) {
+        return {
+          success: true,
+          suggestions: [],
+          message: 'Query too short (minimum 2 characters)',
+        };
+      }
+
+      const suggestions = await this.fullTextSearchService.getSuggestions(query);
+
+      return {
+        success: true,
+        query,
+        suggestions,
+        source: 'fulltext-index',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  @Get('search/fulltext/filters')
+  async testFullTextSearchFilters() {
+    try {
+      const filters = await this.fullTextSearchService.getFilterOptions();
+
+      return {
+        success: true,
+        filters,
+        message: 'Available filter options for full-text search',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  // ============ Phase 4: Hybrid Search Test Endpoints ============
+
+  @Get('search/hybrid/health')
+  async testHybridSearchHealth() {
+    try {
+      const health = await this.hybridSearchService.healthCheck();
+      
+      return {
+        success: true,
+        message: health.available 
+          ? 'Hybrid search is ready'
+          : 'Hybrid search not fully available',
+        health,
+        recommendation: health.available
+          ? 'All hybrid search components are operational'
+          : `Missing components: ${Object.entries(health.components)
+              .filter(([, available]) => !available)
+              .map(([name]) => name)
+              .join(', ')}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  @Post('search/hybrid')
+  async testHybridSearch(@Body() body: { 
+    query: string; 
+    limit?: number;
+    vectorWeight?: number;
+    textWeight?: number;
+    vectorThreshold?: number;
+    source?: string;
+    language?: string;
+    contentType?: string;
+    repository?: string;
+  }) {
+    try {
+      if (!body.query || body.query.trim().length === 0) {
+        return {
+          success: false,
+          error: 'Query is required',
+        };
+      }
+
+      const result = await this.hybridSearchService.hybridSearch(body.query, {
+        limit: body.limit ?? 10,
+        vectorWeight: body.vectorWeight ?? 0.6,
+        textWeight: body.textWeight ?? 0.4,
+        vectorThreshold: body.vectorThreshold ?? 0.7,
+        source: body.source as any ?? 'all',
+        language: body.language,
+        contentType: body.contentType,
+        repository: body.repository,
+      });
+
+      return {
+        success: true,
+        searchMethod: 'hybrid',
+        searchResult: result,
+        performance: {
+          searchTime: result.searchTime,
+          totalResults: result.totalResults,
+          metadata: result.metadata,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  @Get('search/hybrid/suggestions')
+  async testHybridSearchSuggestions(@Query('q') query: string) {
+    try {
+      if (!query || query.trim().length < 2) {
+        return {
+          success: true,
+          suggestions: [],
+          message: 'Query too short (minimum 2 characters)',
+        };
+      }
+
+      const suggestions = await this.hybridSearchService.getHybridSearchSuggestions(query);
+
+      return {
+        success: true,
+        query,
+        suggestions,
+        source: 'hybrid-search',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  // ============================================
+  // Search Reranker Test Endpoints
+  // ============================================
+
+  @Get('search/reranker/health')
+  async testRerankerHealth() {
+    try {
+      const health = await this.searchRerankerService.healthCheck();
+
+      return {
+        success: true,
+        health,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  @Post('search/reranker/gemini')
+  async testGeminiReranker(@Body() body: { query: string; results?: any[] }) {
+    try {
+      const { query, results: providedResults } = body;
+
+      if (!query) {
+        return {
+          success: false,
+          error: 'Query is required',
+        };
+      }
+
+      // Use provided results or generate some mock results for testing
+      let results = providedResults;
+      if (!results || results.length === 0) {
+        // Generate mock hybrid search results
+        results = [
+          {
+            id: 'test-1',
+            title: 'TypeScript Interface Tutorial',
+            content: 'Learn how to create and use TypeScript interfaces for better type safety...',
+            score: 0.9,
+            vectorScore: 0.85,
+            textScore: 0.95,
+            combinedRank: 0.9,
+            metadata: { source: 'github', language: 'typescript', repository: 'test/repo' },
+          },
+          {
+            id: 'test-2',
+            title: 'JavaScript Objects and Interfaces',
+            content: 'Understanding the difference between JavaScript objects and TypeScript interfaces...',
+            score: 0.8,
+            vectorScore: 0.75,
+            textScore: 0.85,
+            combinedRank: 0.8,
+            metadata: { source: 'stackoverflow', language: 'javascript', repository: null },
+          },
+          {
+            id: 'test-3',
+            title: 'Advanced Interface Patterns',
+            content: 'Explore advanced TypeScript interface patterns including generics and conditional types...',
+            score: 0.7,
+            vectorScore: 0.7,
+            textScore: 0.7,
+            combinedRank: 0.7,
+            metadata: { source: 'github', language: 'typescript', repository: 'advanced/patterns' },
+          },
+        ];
+      }
+
+      const rerankerResult = await this.searchRerankerService.rerank(query, results, {
+        maxResults: 10,
+        includeReasonlng: true,
+      });
+
+      return {
+        success: true,
+        query,
+        originalResultsCount: results.length,
+        rerankerResult,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  @Post('search/reranker/statistical')
+  async testStatisticalReranker(@Body() body: { query: string; results?: any[] }) {
+    try {
+      const { query, results: providedResults } = body;
+
+      if (!query) {
+        return {
+          success: false,
+          error: 'Query is required',
+        };
+      }
+
+      // Use provided results or generate some mock results for testing
+      let results = providedResults;
+      if (!results || results.length === 0) {
+        // Generate mock hybrid search results
+        results = [
+          {
+            id: 'test-1',
+            title: 'Basic Programming Concepts',
+            content: 'Introduction to fundamental programming concepts and practices...',
+            score: 0.6,
+            vectorScore: 0.6,
+            textScore: 0.6,
+            combinedRank: 0.6,
+            metadata: { source: 'github', language: 'javascript', repository: 'basic/concepts' },
+          },
+          {
+            id: 'test-2',
+            title: `${query} Best Practices`, // This should rank higher for statistical
+            content: `Learn the best practices for ${query} development and implementation...`,
+            score: 0.5,
+            vectorScore: 0.5,
+            textScore: 0.5,
+            combinedRank: 0.5,
+            metadata: { source: 'stackoverflow', language: 'typescript', repository: null },
+          },
+          {
+            id: 'test-3',
+            title: 'General Development Guide',
+            content: 'A comprehensive guide to software development methodologies...',
+            score: 0.7,
+            vectorScore: 0.7,
+            textScore: 0.7,
+            combinedRank: 0.7,
+            metadata: { source: 'github', language: 'python', repository: 'dev/guide' },
+          },
+        ];
+      }
+
+      const rerankerResult = await this.searchRerankerService.rerankWithStatistics(query, results, 10);
+
+      return {
+        success: true,
+        query,
+        originalResultsCount: results.length,
+        rerankerResult,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  // ============================================
+  // Search Filter Test Endpoints
+  // ============================================
+
+  @Get('search/filters/health')
+  async testSearchFiltersHealth() {
+    try {
+      const health = await this.searchFilterService.healthCheck();
+
+      return {
+        success: true,
+        health,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  @Get('search/filters/options')
+  async testGetFilterOptions() {
+    try {
+      const filterOptions = await this.searchFilterService.getFilterOptions();
+
+      return {
+        success: true,
+        filterOptions,
+        availableFiltersCount: {
+          languages: filterOptions.availableLanguages.length,
+          repositories: filterOptions.availableRepositories.length,
+          fileTypes: filterOptions.availableFileTypes.length,
+          extensions: filterOptions.availableExtensions.length,
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  @Post('search/filters/validate')
+  async testValidateFilters(@Body() body: { filters: any }) {
+    try {
+      const { filters } = body;
+
+      if (!filters) {
+        return {
+          success: false,
+          error: 'Filters object is required',
+        };
+      }
+
+      const validation = await this.searchFilterService.validateFilters(filters);
+
+      return {
+        success: true,
+        validation,
+        inputFilters: filters,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  @Post('search/hybrid/filtered')
+  async testHybridSearchWithFilters(@Body() body: { 
+    query: string; 
+    filters?: any;
+    options?: any;
+  }) {
+    try {
+      const { query, filters, options = {} } = body;
+
+      if (!query) {
+        return {
+          success: false,
+          error: 'Query is required',
+        };
+      }
+
+      // Merge filters into options
+      const searchOptions = {
+        ...options,
+        filters: filters ?? {},
+      };
+
+      const searchResult = await this.hybridSearchService.hybridSearch(query, searchOptions);
+
+      return {
+        success: true,
+        query,
+        searchResult,
+        filtersApplied: !!filters && Object.keys(filters).length > 0,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  @Post('search/filters/apply')
+  testApplyFiltersToResults(@Body() body: { 
+    results: any[];
+    filters: any;
+  }) {
+    try {
+      const { results, filters } = body;
+
+      if (!results || !Array.isArray(results)) {
+        return {
+          success: false,
+          error: 'Results array is required',
+        };
+      }
+
+      if (!filters) {
+        return {
+          success: false,
+          error: 'Filters object is required',
+        };
+      }
+
+      // Mock some results if none provided
+      const mockResults = results.length > 0 ? results : [
+        {
+          id: 'test-1',
+          content: 'TypeScript interface example',
+          title: 'TypeScript Interfaces Guide',
+          score: 0.9,
+          metadata: { source: 'github', language: 'typescript', repository: 'ts/examples' },
+        },
+        {
+          id: 'test-2',
+          content: 'JavaScript object patterns',
+          title: 'JS Object Patterns',
+          score: 0.7,
+          metadata: { source: 'stackoverflow', language: 'javascript', repository: null },
+        },
+        {
+          id: 'test-3',
+          content: 'Python class definitions',
+          title: 'Python Classes',
+          score: 0.6,
+          metadata: { source: 'github', language: 'python', repository: 'py/examples' },
+        },
+      ];
+
+      const appliedFilters = this.searchFilterService.applyFiltersToResults(mockResults, filters);
+
+      return {
+        success: true,
+        originalResults: mockResults,
+        appliedFilters,
+        filtersUsed: filters,
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       return {

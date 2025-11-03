@@ -160,8 +160,8 @@ export class QueueService {
       throw new Error('GitHub discovery queue not found');
     }
     return queue.add(JobType.GITHUB_DISCOVER_REPOSITORIES, data, {
-      priority: options?.priority || 1,
-      delay: options?.delay || 0,
+      priority: options?.priority ?? 1,
+      delay: options?.delay ?? 0,
     });
   }
 
@@ -175,8 +175,8 @@ export class QueueService {
       throw new Error('GitHub ingestion queue not found');
     }
     return queue.add(JobType.GITHUB_INGEST_REPOSITORY, data, {
-      priority: options?.priority || 1,
-      delay: options?.delay || 0,
+      priority: options?.priority ?? 1,
+      delay: options?.delay ?? 0,
     });
   }
 
@@ -190,8 +190,8 @@ export class QueueService {
       throw new Error('GitHub processing queue not found');
     }
     return queue.add(JobType.GITHUB_PROCESS_FILE, data, {
-      priority: options?.priority || 1,
-      delay: options?.delay || 0,
+      priority: options?.priority ?? 1,
+      delay: options?.delay ?? 0,
     });
   }
 
@@ -205,8 +205,8 @@ export class QueueService {
       throw new Error('StackOverflow discovery queue not found');
     }
     return queue.add(JobType.STACKOVERFLOW_DISCOVER_QUESTIONS, data, {
-      priority: options?.priority || 1,
-      delay: options?.delay || 0,
+      priority: options?.priority ?? 1,
+      delay: options?.delay ?? 0,
     });
   }
 
@@ -220,8 +220,8 @@ export class QueueService {
       throw new Error('StackOverflow ingestion queue not found');
     }
     return queue.add(JobType.STACKOVERFLOW_INGEST_QUESTION, data, {
-      priority: options?.priority || 1,
-      delay: options?.delay || 0,
+      priority: options?.priority ?? 1,
+      delay: options?.delay ?? 0,
     });
   }
 
@@ -235,8 +235,8 @@ export class QueueService {
       throw new Error('Embedding generation queue not found');
     }
     return queue.add(JobType.GENERATE_EMBEDDINGS, data, {
-      priority: options?.priority || 1,
-      delay: options?.delay || 0,
+      priority: options?.priority ?? 1,
+      delay: options?.delay ?? 0,
     });
   }
 
@@ -250,8 +250,8 @@ export class QueueService {
       throw new Error('Content chunking queue not found');
     }
     return queue.add(JobType.CHUNK_CONTENT, data, {
-      priority: options?.priority || 1,
-      delay: options?.delay || 0,
+      priority: options?.priority ?? 1,
+      delay: options?.delay ?? 0,
     });
   }
 
@@ -321,9 +321,9 @@ export class QueueService {
     }
 
     await queue.clean(
-      options.grace || 24 * 60 * 60 * 1000, // 24 hours default
-      options.count || 100,
-      options.type || 'completed',
+      options.grace ?? 24 * 60 * 60 * 1000, // 24 hours default
+      options.count ?? 100,
+      options.type ?? 'completed',
     );
 
     this.logger.log(`Cleaned queue: ${queueName}`);

@@ -73,11 +73,13 @@ export class SearchService {
 
       if (this.geminiService.isAvailable()) {
         try {
-          queryEmbedding = await this.geminiService.generateQueryEmbedding(query);
+          queryEmbedding =
+            await this.geminiService.generateQueryEmbedding(query);
           embeddingGenerated = true;
           this.logger.debug('Generated query embedding');
         } catch (error) {
-          this.logger.warn(`Failed to generate query embedding: ${error.message}`);
+          this.logger.warn(`
+            Failed to generate query embedding: ${error.message}`);
         }
       }
 
@@ -126,7 +128,6 @@ export class SearchService {
       };
     } catch (error) {
       this.logger.error(`Semantic search failed: ${error.message}`);
-      
       // Ultimate fallback to text search
       const results = await this.textSearch(query, options);
       const searchTime = Date.now() - startTime;
@@ -188,9 +189,8 @@ export class SearchService {
         paramIndex++;
       }
 
-      const whereClause = conditions.length > 0 
-        ? `AND ${conditions.join(' AND ')}`
-        : '';
+      const whereClause =
+        conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '';
 
       const query_sql = `
         SELECT 
@@ -253,7 +253,10 @@ export class SearchService {
     try {
       // Perform both searches in parallel
       const [semanticResponse, textResults] = await Promise.all([
-        this.semanticSearch(query, { ...options, limit: Math.ceil(limit * 0.7) }),
+        this.semanticSearch(query, {
+          ...options,
+          limit: Math.ceil(limit * 0.7),
+        }),
         this.textSearch(query, { ...options, limit: Math.ceil(limit * 0.5) }),
       ]);
 
@@ -323,19 +326,23 @@ export class SearchService {
 
     try {
       // Get common terms from content chunks
-      const suggestions = await this.prisma.$queryRawUnsafe(`
-        SELECT DISTINCT 
+      const suggestions = await this.prisma.$queryRawUnsafe(
+        `SELECT DISTINCT 
           UNNEST(regexp_split_to_array(content, '\\W+')) as term
         FROM "ContentChunk"
         WHERE content ILIKE $1
         AND LENGTH(UNNEST(regexp_split_to_array(content, '\\W+'))) > 2
         ORDER BY term
         LIMIT 10
-      `, `%${partialQuery}%`);
+      `,
+        `%${partialQuery}%`,
+      );
 
       return (suggestions as any[])
-        .map(row => row.term)
-        .filter(term => term && term.toLowerCase().startsWith(partialQuery.toLowerCase()));
+        .map((row) => row.term)
+        .filter((term) =>
+          term?.toLowerCase().startsWith(partialQuery.toLowerCase()),
+        );
     } catch (error) {
       this.logger.error(`Failed to get suggestions: ${error.message}`);
       return [];
@@ -365,7 +372,7 @@ export class SearchService {
       ]);
 
       const languages = (languageStats as any[])
-        .map(row => row.language)
+        .map((row) => row.language)
         .filter(Boolean);
 
       return {
@@ -395,10 +402,9 @@ export class SearchService {
     if (vectorResults.length === 0) return [];
 
     try {
-      const chunkIds = vectorResults.map(result => result.id);
-      
-      const enrichedData = await this.prisma.$queryRawUnsafe(`
-        SELECT 
+      const chunkIds = vectorResults.map((result) => result.id);
+      const enrichedData = await this.prisma.$queryRawUnsafe(
+        `SELECT 
           cc.id,
           cc."repositoryId",
           cc."questionId",
@@ -412,15 +418,16 @@ export class SearchService {
         LEFT JOIN "Repository" r ON cc."repositoryId" = r.id
         LEFT JOIN "Question" q ON cc."questionId" = q.id
         WHERE cc.id = ANY($1)
-      `, chunkIds);
-
-      const enrichmentMap = new Map(
-        (enrichedData as any[]).map(row => [row.id, row])
+      `,
+        chunkIds,
       );
 
-      return vectorResults.map(result => {
+      const enrichmentMap = new Map(
+        (enrichedData as any[]).map((row) => [row.id, row]),
+      );
+
+      return vectorResults.map((result) => {
         const enrichment = enrichmentMap.get(result.id);
-        
         return {
           id: result.id,
           content: result.content,
@@ -432,11 +439,11 @@ export class SearchService {
             questionId: enrichment?.questionId?.toString(),
             chunkIndex: result.metadata.chunkIndex,
             language: enrichment?.language,
-            title: enrichment?.repository_name || enrichment?.question_title,
+            title: enrichment?.repository_name ?? enrichment?.question_title,
             owner: enrichment?.repository_owner,
-            url: enrichment?.repositoryId 
+            url: enrichment?.repositoryId
               ? enrichment.repository_url
-              : enrichment?.question_so_id 
+              : enrichment?.question_so_id
                 ? `https://stackoverflow.com/questions/${enrichment.question_so_id}`
                 : undefined,
           },
@@ -444,10 +451,10 @@ export class SearchService {
       });
     } catch (error) {
       this.logger.error(`Failed to enrich search results: ${error.message}`);
-      return vectorResults.map(result => ({
+      return vectorResults.map((result) => ({
         id: result.id,
         content: result.content,
-        score: result.similarity || 1.0,
+        score: result.similarity ?? 1.0,
         metadata: {
           source: result.metadata.contentType,
           chunkIndex: result.metadata.chunkIndex,
@@ -467,7 +474,7 @@ export class SearchService {
     const resultMap = new Map<string, SearchResult>();
 
     // Add semantic results with higher weight
-    semanticResults.forEach(result => {
+    semanticResults.forEach((result) => {
       resultMap.set(result.id, {
         ...result,
         score: (result.score || 0) * 1.2, // Boost semantic results
@@ -475,7 +482,7 @@ export class SearchService {
     });
 
     // Add text results, combining scores if already exists
-    textResults.forEach(result => {
+    textResults.forEach((result) => {
       const existing = resultMap.get(result.id);
       if (existing) {
         // Combine scores

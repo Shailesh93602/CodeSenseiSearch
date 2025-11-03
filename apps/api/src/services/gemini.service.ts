@@ -21,8 +21,10 @@ export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
   private readonly genAI: GoogleGenerativeAI;
   private readonly embeddingModel = 'text-embedding-004';
+  private readonly textModel = 'gemini-1.5-flash';
   private readonly maxTokensPerChunk = 2048; // Gemini embedding model limit
   private embeddingModelInstance: any;
+  private textModelInstance: any;
 
   constructor(private configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
@@ -37,6 +39,9 @@ export class GeminiService {
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.embeddingModelInstance = this.genAI.getGenerativeModel({
       model: this.embeddingModel,
+    });
+    this.textModelInstance = this.genAI.getGenerativeModel({
+      model: this.textModel,
     });
 
     this.logger.log('Gemini service initialized');
@@ -104,7 +109,6 @@ export class GeminiService {
 
       for (let i = 0; i < truncatedContents.length; i++) {
         const content = truncatedContents[i];
-        
         try {
           const result = await this.embeddingModelInstance.embedContent({
             content: { parts: [{ text: content }] },
@@ -171,6 +175,29 @@ export class GeminiService {
       return result.embedding.values;
     } catch (error) {
       this.logger.error(`Failed to generate query embedding: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate text using Gemini's generative model
+   */
+  async generateText(prompt: string): Promise<string> {
+    if (!this.genAI || !this.textModelInstance) {
+      throw new Error('Gemini service not initialized. Check GEMINI_API_KEY.');
+    }
+
+    try {
+      this.logger.debug(`Generating text for prompt length: ${prompt.length}`);
+
+      const result = await this.textModelInstance.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      this.logger.debug(`Generated text response length: ${text.length}`);
+      return text;
+    } catch (error) {
+      this.logger.error(`Failed to generate text: ${error.message}`);
       throw error;
     }
   }

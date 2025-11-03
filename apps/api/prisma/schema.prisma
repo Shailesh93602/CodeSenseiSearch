@@ -412,3 +412,239 @@ enum IngestionJobType {
   GENERATE_EMBEDDINGS
   CHUNK_CONTENT
 }
+
+// =======================
+// PHASE 5: AUTHENTICATION
+// =======================
+
+// Enhanced User model with authentication fields
+model UserAuth {
+  id                  String   @id @default(cuid())
+  email               String   @unique
+  username            String?  @unique
+  displayName         String?
+  avatarUrl           String?
+  
+  // Password authentication
+  passwordHash        String?
+  emailVerified       Boolean  @default(false)
+  emailVerificationToken String? @unique
+  
+  // GitHub OAuth
+  githubId            String?  @unique
+  githubUsername      String?
+  githubAccessToken   String?  // Encrypted
+  
+  // User roles and status
+  role                UserRole @default(USER)
+  isActive            Boolean  @default(true)
+  isBanned            Boolean  @default(false)
+  
+  // User preferences
+  preferences         Json     @default("{}")
+  
+  // Timestamps
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  lastLoginAt         DateTime?
+  
+  // Relationships
+  sessions            UserSession[]
+  searchHistory       SearchHistory[]
+  favorites           UserFavorite[]
+  preferences_        UserPreferences?
+  rateLimits          UserRateLimit?
+  
+  @@map("user_auth")
+}
+
+// User authentication sessions
+model UserSession {
+  id                  String   @id @default(cuid())
+  userId              String
+  
+  // Token management
+  refreshToken        String   @unique
+  accessTokenHash     String?
+  jwtId               String   @unique // For JWT blacklisting
+  
+  // Session metadata
+  expiresAt           DateTime
+  userAgent           String?
+  ipAddress           String?
+  deviceInfo          Json?    // Browser, OS, etc.
+  
+  // Session status
+  isRevoked           Boolean  @default(false)
+  revokedAt           DateTime?
+  revokeReason        String?
+  
+  // Timestamps
+  createdAt           DateTime @default(now())
+  lastUsedAt          DateTime @default(now())
+  
+  // Relationships
+  user                UserAuth @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_sessions")
+  @@index([userId, expiresAt])
+  @@index([refreshToken])
+  @@index([accessTokenHash])
+}
+
+// User search history
+model SearchHistory {
+  id                  String   @id @default(cuid())
+  userId              String
+  
+  // Search details
+  query               String
+  filters             Json     @default("{}")
+  searchMethod        String   // 'hybrid', 'vector', 'fulltext'
+  
+  // Search results metadata
+  resultsCount        Int
+  searchTime          Int      // milliseconds
+  clickedResults      Json     @default("[]") // Array of clicked result IDs
+  
+  // Search context
+  userAgent           String?
+  ipAddress           String?
+  
+  // Timestamps
+  createdAt           DateTime @default(now())
+  
+  // Relationships
+  user                UserAuth @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("search_history")
+  @@index([userId, createdAt])
+  @@index([query])
+  @@index([createdAt])
+}
+
+// User favorites/bookmarks
+model UserFavorite {
+  id                  String   @id @default(cuid())
+  userId              String
+  
+  // Favorited content
+  contentId           String?  // Reference to Content if available
+  resultData          Json     // Stored search result data
+  
+  // Organization
+  title               String
+  description         String?
+  tags                String[] @default([])
+  notes               String?
+  
+  // Metadata
+  originalQuery       String?  // Query that led to this result
+  sourceUrl           String?
+  
+  // Timestamps
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relationships
+  user                UserAuth @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_favorites")
+  @@index([userId, createdAt])
+  @@index([userId, tags])
+  @@unique([userId, contentId])
+}
+
+// User preferences and settings
+model UserPreferences {
+  userId              String   @id
+  
+  // Search preferences
+  preferredLanguages  String[] @default([])
+  preferredSources    String[] @default([])
+  defaultSearchMethod String   @default("hybrid") // 'hybrid', 'vector', 'fulltext'
+  
+  // UI preferences
+  theme               String   @default("system") // 'light', 'dark', 'system'
+  resultsPerPage      Int      @default(20)
+  
+  // Notification preferences
+  emailNotifications  Boolean  @default(true)
+  searchSuggestions   Boolean  @default(true)
+  
+  // Privacy preferences
+  trackSearchHistory  Boolean  @default(true)
+  publicProfile       Boolean  @default(false)
+  shareStatistics     Boolean  @default(false)
+  
+  // Advanced settings
+  searchSettings      Json     @default("{}")
+  
+  // Timestamps
+  updatedAt           DateTime @updatedAt
+  
+  // Relationships
+  user                UserAuth @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_preferences")
+}
+
+// User rate limiting
+model UserRateLimit {
+  userId              String   @id
+  
+  // Rate limit tracking
+  dailySearches       Int      @default(0)
+  monthlySearches     Int      @default(0)
+  
+  // Time tracking
+  lastSearchDate      DateTime @default(now())
+  lastSearchMonth     DateTime @default(now())
+  
+  // Rate limit configuration
+  rateLimitTier       RateLimitTier @default(FREE)
+  dailyLimit          Int      @default(100)
+  monthlyLimit        Int      @default(1000)
+  
+  // Penalties
+  isThrottled         Boolean  @default(false)
+  throttledUntil      DateTime?
+  violationCount      Int      @default(0)
+  
+  // Timestamps
+  updatedAt           DateTime @updatedAt
+  
+  // Relationships
+  user                UserAuth @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_rate_limits")
+}
+
+// Password reset tokens
+model PasswordResetToken {
+  id                  String   @id @default(cuid())
+  email               String
+  token               String   @unique
+  expiresAt           DateTime
+  isUsed              Boolean  @default(false)
+  
+  createdAt           DateTime @default(now())
+  
+  @@map("password_reset_tokens")
+  @@index([email])
+  @@index([token])
+}
+
+// Enums for authentication
+enum UserRole {
+  USER
+  PREMIUM
+  ADMIN
+  MODERATOR
+}
+
+enum RateLimitTier {
+  FREE
+  PREMIUM
+  UNLIMITED
+}
