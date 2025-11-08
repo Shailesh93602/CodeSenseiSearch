@@ -7,9 +7,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  // extensions = [vector]  // Will be enabled in Phase 3 when we add pgvector
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
 }
 
 // User management (from Phase 1)
