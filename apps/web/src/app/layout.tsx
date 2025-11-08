@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SEOMetadata, pageConfigs } from "@/lib/seo";
+import { WebVitalsReporter } from "@/components/performance/WebVitalsReporter";
 import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap", // Optimize font loading
+  preload: true,
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap", // Optimize font loading
+  preload: true,
 });
 
 export const metadata: Metadata = SEOMetadata.generateMetadata(pageConfigs.home);
@@ -68,10 +73,14 @@ export default function RootLayout({
         
         {/* DNS prefetch for performance */}
         <link rel="dns-prefetch" href="//api.codesenseisearch.com" />
+        
+        {/* Critical CSS inlining hint */}
+        <link rel="preload" href="/app/globals.css" as="style" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <WebVitalsReporter />
         {children}
       </body>
     </html>

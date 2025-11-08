@@ -25,6 +25,30 @@ export class SitemapGenerator {
         priority: 0.9,
       },
       {
+        url: `${this.baseUrl}/languages`,
+        lastModified: new Date(),
+        changeFrequency: 'weekly',
+        priority: 0.8,
+      },
+      {
+        url: `${this.baseUrl}/javascript`,
+        lastModified: new Date(),
+        changeFrequency: 'weekly',
+        priority: 0.8,
+      },
+      {
+        url: `${this.baseUrl}/python`,
+        lastModified: new Date(),
+        changeFrequency: 'weekly',
+        priority: 0.8,
+      },
+      {
+        url: `${this.baseUrl}/react`,
+        lastModified: new Date(),
+        changeFrequency: 'weekly',
+        priority: 0.8,
+      },
+      {
         url: `${this.baseUrl}/docs`,
         lastModified: new Date(),
         changeFrequency: 'weekly',
