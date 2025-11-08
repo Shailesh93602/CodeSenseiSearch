@@ -73,6 +73,24 @@ export class SitemapGenerator {
         priority: 0.7,
       },
       {
+        url: `${this.baseUrl}/docs/advanced-search`,
+        lastModified: new Date(),
+        changeFrequency: 'weekly',
+        priority: 0.7,
+      },
+      {
+        url: `${this.baseUrl}/docs/use-cases`,
+        lastModified: new Date(),
+        changeFrequency: 'monthly',
+        priority: 0.6,
+      },
+      {
+        url: `${this.baseUrl}/docs/troubleshooting`,
+        lastModified: new Date(),
+        changeFrequency: 'monthly',
+        priority: 0.6,
+      },
+      {
         url: `${this.baseUrl}/about`,
         lastModified: new Date(),
         changeFrequency: 'monthly',
