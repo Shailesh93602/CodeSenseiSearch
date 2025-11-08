@@ -23,7 +23,7 @@ const nextConfig = {
   generateEtags: true,
 
   // Webpack optimizations
-  webpack: (config, { dev, isServer }) => {
+  webpack: (config, { dev }) => {
     // Production optimizations
     if (!dev) {
       config.optimization = {
@@ -55,6 +55,7 @@ const nextConfig = {
 
     // Bundle analyzer (only in development)
     if (dev && process.env.ANALYZE === 'true') {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
       config.plugins.push(
         new BundleAnalyzerPlugin({
@@ -144,11 +145,6 @@ const nextConfig = {
   // TypeScript configuration
   typescript: {
     ignoreBuildErrors: false,
-  },
-
-  // ESLint configuration
-  eslint: {
-    ignoreDuringBuilds: false,
   },
 
   // Output configuration

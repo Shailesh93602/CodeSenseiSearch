@@ -10,7 +10,7 @@ export function Hero() {
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+    <section className="relative overflow-hidden bg-linear-to-br from-slate-900 via-blue-900 to-slate-900">
       {/* Background Pattern */}
       <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
       
@@ -25,7 +25,7 @@ export function Hero() {
           {/* Main Headline */}
           <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl">
             Find{" "}
-            <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="bg-linear-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
               Developer Content
             </span>{" "}
             Instantly
@@ -111,7 +111,7 @@ export function Hero() {
       </div>
 
       {/* Bottom Gradient */}
-      <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 h-20 bg-linear-to-t from-white to-transparent" />
     </section>
   );
 }
