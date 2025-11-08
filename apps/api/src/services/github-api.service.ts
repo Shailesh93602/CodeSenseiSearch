@@ -32,7 +32,7 @@ export interface GitHubRepository {
   description: string | null;
   isPrivate: boolean;
   htmlUrl: string;
-  cloneUrl: string;
+  cloneUrl?: string;
   sshUrl: string;
   stargazersCount: number;
   forksCount: number;
@@ -238,7 +238,6 @@ export class GitHubApiService {
           isPrivate
           url
           sshUrl
-          cloneUrl
           stargazerCount
           forkCount
           primaryLanguage {
@@ -310,7 +309,7 @@ export class GitHubApiService {
         description: repo.description,
         isPrivate: repo.isPrivate,
         htmlUrl: repo.url,
-        cloneUrl: repo.cloneUrl,
+        cloneUrl: `${repo.url}.git`, // GitHub clone URL is always htmlUrl + .git
         sshUrl: repo.sshUrl,
         stargazersCount: repo.stargazerCount,
         forksCount: repo.forkCount,

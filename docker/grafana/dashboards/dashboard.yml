@@ -1,0 +1,36 @@
+# Grafana Dashboard Configuration for CodeSenseiSearch
+apiVersion: 1
+
+providers:
+  # Dashboard provider for system overview
+  - name: 'system-dashboards'
+    orgId: 1
+    folder: 'System Monitoring'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/system
+      
+  # Dashboard provider for application metrics  
+  - name: 'application-dashboards'
+    orgId: 1
+    folder: 'Application Monitoring'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/application
+      
+  # Dashboard provider for business metrics
+  - name: 'business-dashboards'
+    orgId: 1
+    folder: 'Business Analytics'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/business

@@ -1191,4 +1191,206 @@ export class TestController {
       };
     }
   }
+
+  // ============================================
+  // Test Data Creation Endpoints
+  // ============================================
+
+  @Post('content/create-sample')
+  async createSampleContent() {
+    try {
+      // First, find or create a source
+      let source = await this.prismaService.source.findUnique({
+        where: { name: 'github' },
+      });
+
+      if (!source) {
+        source = await this.prismaService.source.create({
+          data: {
+            name: 'github',
+            displayName: 'GitHub',
+            type: 'GITHUB',
+            baseUrl: 'https://api.github.com',
+          },
+        });
+      }
+
+      // Create a sample repository  
+      const repository = await this.prismaService.repository.create({
+        data: {
+          sourceId: source.id,
+          githubId: 999999,
+          fullName: 'testuser/sample-react-hooks',
+          name: 'sample-react-hooks',
+          owner: 'testuser',
+          description: 'A comprehensive guide to React Hooks with examples',
+          starCount: 1250,
+          forkCount: 89,
+          language: 'TypeScript',
+          size: 2048,
+          htmlUrl: 'https://github.com/testuser/sample-react-hooks',
+          cloneUrl: 'https://github.com/testuser/sample-react-hooks.git',
+          defaultBranch: 'main',
+          fileCount: 3,
+          contentCount: 3,
+          chunkCount: 4,
+        },
+      });
+
+      // Create sample content
+      const readmeContent = await this.prismaService.content.create({
+        data: {
+          title: 'README.md - React Hooks Guide',
+          content: `# React Hooks Guide
+
+This repository contains a comprehensive guide to React Hooks, including useState, useEffect, useContext, and custom hooks.
+
+## Introduction to React Hooks
+
+React Hooks allow you to use state and other React features without writing a class component. They were introduced in React 16.8 and have become the standard way to write React components.
+
+### useState Hook
+
+The useState hook allows you to add state to functional components:
+
+\`\`\`javascript
+import React, { useState } from 'react';
+
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div>
+      <p>You clicked {count} times</p>
+      <button onClick={() => setCount(count + 1)}>
+        Click me
+      </button>
+    </div>
+  );
+}
+\`\`\``,
+          contentType: 'REPOSITORY_FILE',
+          language: 'markdown',
+          filePath: 'README.md',
+          fileName: 'README.md',
+          fileSize: 1024,
+          contentHash: 'readme-hash-' + Date.now(),
+          repositoryId: repository.id,
+          chunkCount: 2,
+        },
+      });
+
+      const hookContent = await this.prismaService.content.create({
+        data: {
+          title: 'useCounter.ts - Custom Hook',
+          content: `import { useState, useCallback } from 'react';
+
+export interface CounterState {
+  count: number;
+  increment: () => void;
+  decrement: () => void;
+  reset: () => void;
+}
+
+export function useCounter(initialValue: number = 0): CounterState {
+  const [count, setCount] = useState(initialValue);
+
+  const increment = useCallback(() => {
+    setCount((prev) => prev + 1);
+  }, []);
+
+  const decrement = useCallback(() => {
+    setCount((prev) => prev - 1);
+  }, []);
+
+  const reset = useCallback(() => {
+    setCount(initialValue);
+  }, [initialValue]);
+
+  return {
+    count,
+    increment,
+    decrement,
+    reset,
+  };
+}`,
+          contentType: 'REPOSITORY_FILE',
+          language: 'typescript',
+          filePath: 'src/hooks/useCounter.ts',
+          fileName: 'useCounter.ts',
+          fileSize: 512,
+          contentHash: 'hook-hash-' + Date.now(),
+          repositoryId: repository.id,
+          chunkCount: 1,
+        },
+      });
+
+      // Create content chunks
+      const chunk1 = await this.prismaService.contentChunk.create({
+        data: {
+          contentId: readmeContent.id,
+          chunkText: 'React Hooks allow you to use state and other React features without writing a class component. They were introduced in React 16.8 and have become the standard way to write React components.',
+          chunkHash: 'chunk1-hash-' + Date.now(),
+          sequence: 0,
+          startLine: 5,
+          endLine: 7,
+        },
+      });
+
+      const chunk2 = await this.prismaService.contentChunk.create({
+        data: {
+          contentId: readmeContent.id,
+          chunkText: `The useState hook allows you to add state to functional components. Here's an example of a simple counter component that uses useState to manage its state.`,
+          chunkHash: 'chunk2-hash-' + Date.now(),
+          sequence: 1,
+          startLine: 10,
+          endLine: 12,
+        },
+      });
+
+      const chunk3 = await this.prismaService.contentChunk.create({
+        data: {
+          contentId: hookContent.id,
+          chunkText: `export function useCounter(initialValue: number = 0): CounterState {
+  const [count, setCount] = useState(initialValue);
+  
+  const increment = useCallback(() => {
+    setCount((prev) => prev + 1);
+  }, []);
+  
+  return { count, increment, decrement, reset };
+}`,
+          chunkHash: 'chunk3-hash-' + Date.now(),
+          sequence: 0,
+          startLine: 10,
+          endLine: 25,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Sample content created successfully',
+        data: {
+          repository: {
+            id: repository.id,
+            name: repository.name,
+            fullName: repository.fullName,
+          },
+          contents: 2,
+          chunks: 3,
+          sampleChunks: [
+            { id: chunk1.id, text: chunk1.chunkText.substring(0, 100) + '...' },
+            { id: chunk2.id, text: chunk2.chunkText.substring(0, 100) + '...' },
+            { id: chunk3.id, text: chunk3.chunkText.substring(0, 100) + '...' },
+          ],
+        },
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
 }

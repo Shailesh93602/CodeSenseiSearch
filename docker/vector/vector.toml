@@ -1,0 +1,243 @@
+# Vector Configuration for CodeSenseiSearch
+# Vector is a high-performance observability data pipeline
+
+data_dir: "/var/lib/vector"
+
+# =============================================
+# Sources - Log Collection
+# =============================================
+sources:
+  # Docker container logs
+  docker_logs:
+    type: "docker_logs"
+    include_images: ["codesenseisearch/*"]
+    exclude_images: ["prometheus/*", "grafana/*"]
+
+  # Application logs from file system
+  app_logs:
+    type: "file"
+    include: ["/app/logs/**/*.log"]
+    read_from: "beginning"
+    fingerprint:
+      strategy: "device_and_inode"
+
+  # Nginx logs
+  nginx_access:
+    type: "file"
+    include: ["/var/log/nginx/access.log"]
+    read_from: "end"
+
+  nginx_error:
+    type: "file"
+    include: ["/var/log/nginx/error.log"]
+    read_from: "end"
+
+  # System logs
+  syslog:
+    type: "file"
+    include: ["/var/log/syslog", "/var/log/messages"]
+    read_from: "end"
+
+  # Kubernetes logs (if running on K8s)
+  kubernetes_logs:
+    type: "kubernetes_logs"
+    annotation_fields:
+      container_image: "container_image"
+      pod_name: "pod_name"
+      pod_namespace: "pod_namespace"
+
+# =============================================
+# Transforms - Log Processing
+# =============================================
+transforms:
+  # Parse JSON logs
+  parse_json:
+    type: "remap"
+    inputs: ["app_logs"]
+    source: |
+      if is_string(.message) {
+        parsed = parse_json(.message) ?? {}
+        . = merge(., parsed)
+      }
+
+  # Parse Nginx access logs
+  parse_nginx_access:
+    type: "remap"
+    inputs: ["nginx_access"]
+    source: |
+      . = parse_nginx_log(.message, format: "combined") ?? .
+      .timestamp = parse_timestamp(.timestamp, format: "%d/%b/%Y:%H:%M:%S %z") ?? now()
+
+  # Parse Nginx error logs
+  parse_nginx_error:
+    type: "remap"
+    inputs: ["nginx_error"]
+    source: |
+      parsed = parse_regex(.message, r'^(?P<timestamp>\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}) \[(?P<level>\w+)\] (?P<pid>\d+)#(?P<tid>\d+): (?P<message>.*)')
+      if parsed != null {
+        .timestamp = parse_timestamp(parsed.timestamp, format: "%Y/%m/%d %H:%M:%S") ?? now()
+        .level = parsed.level
+        .pid = parsed.pid
+        .tid = parsed.tid
+        .message = parsed.message
+      }
+
+  # Add common fields
+  add_metadata:
+    type: "remap"
+    inputs: ["parse_json", "parse_nginx_access", "parse_nginx_error", "docker_logs"]
+    source: |
+      .environment = "production"
+      .service = .container_name ?? "unknown"
+      .version = get_env_var("APP_VERSION") ?? "unknown"
+      .hostname = get_hostname() ?? "unknown"
+
+  # Filter out noise
+  filter_logs:
+    type: "filter"
+    inputs: ["add_metadata"]
+    condition: |
+      !contains(.message, "health check") &&
+      !contains(.message, "metrics endpoint") &&
+      .level != "debug"
+
+  # Enrich with GeoIP (for nginx logs)
+  geoip_enrich:
+    type: "geoip"
+    inputs: ["filter_logs"]
+    database: "/usr/share/GeoIP/GeoLite2-City.mmdb"
+    source: "remote_addr"
+    target: "geoip"
+
+  # Detect anomalies
+  anomaly_detection:
+    type: "remap"
+    inputs: ["geoip_enrich"]
+    source: |
+      # Mark potential security issues
+      if .level == "error" && contains(.message, "authentication") {
+        .security_alert = true
+      }
+      
+      # Mark high response times
+      if exists(.response_time) && to_float(.response_time) > 5000 {
+        .performance_alert = true
+      }
+      
+      # Mark failed searches
+      if .service == "search-engine" && .results_count == 0 {
+        .search_failure = true
+      }
+
+  # Create metrics from logs
+  log_metrics:
+    type: "log_to_metric"
+    inputs: ["anomaly_detection"]
+    metrics:
+      - type: "counter"
+        field: "message"
+        name: "log_events_total"
+        tags:
+          service: "{{ service }}"
+          level: "{{ level }}"
+          environment: "{{ environment }}"
+
+      - type: "histogram"
+        field: "response_time"
+        name: "http_request_duration_ms"
+        tags:
+          service: "{{ service }}"
+          method: "{{ method }}"
+          status: "{{ status }}"
+
+      - type: "gauge"
+        field: "active_connections"
+        name: "nginx_active_connections"
+        tags:
+          hostname: "{{ hostname }}"
+
+# =============================================
+# Sinks - Log Destinations
+# =============================================
+sinks:
+  # Loki for log storage and querying
+  loki_sink:
+    type: "loki"
+    inputs: ["anomaly_detection"]
+    endpoint: "http://loki:3100"
+    encoding:
+      codec: "json"
+    labels:
+      service: "{{ service }}"
+      level: "{{ level }}"
+      environment: "{{ environment }}"
+      hostname: "{{ hostname }}"
+
+  # Elasticsearch for full-text search and analytics
+  elasticsearch_sink:
+    type: "elasticsearch"
+    inputs: ["anomaly_detection"]
+    endpoints: ["http://elasticsearch:9200"]
+    index: "codesenseisearch-logs-%Y.%m.%d"
+    doc_type: "_doc"
+    compression: "gzip"
+
+  # File backup for critical logs
+  file_backup:
+    type: "file"
+    inputs: ["anomaly_detection"]
+    path: "/var/log/codesenseisearch/backup-%Y-%m-%d.log"
+    encoding:
+      codec: "json"
+    compression: "gzip"
+
+  # Metrics to Prometheus
+  prometheus_metrics:
+    type: "prometheus_exporter"
+    inputs: ["log_metrics"]
+    address: "0.0.0.0:9598"
+
+  # Alert on critical errors
+  alert_webhook:
+    type: "http"
+    inputs: ["anomaly_detection"]
+    uri: "http://alertmanager:9093/api/v1/alerts"
+    method: "post"
+    encoding:
+      codec: "json"
+    healthcheck:
+      enabled: true
+    condition: |
+      .level == "error" || 
+      .security_alert == true || 
+      .performance_alert == true
+
+  # S3 for long-term storage
+  s3_archive:
+    type: "aws_s3"
+    inputs: ["anomaly_detection"]
+    bucket: "codesenseisearch-logs"
+    key_prefix: "year=%Y/month=%m/day=%d/hour=%H/"
+    encoding:
+      codec: "json"
+    compression: "gzip"
+    region: "us-east-1"
+    batch:
+      max_events: 1000
+      timeout_secs: 300
+
+# =============================================
+# API Configuration
+# =============================================
+api:
+  enabled: true
+  address: "0.0.0.0:8686"
+  playground: true
+
+# =============================================
+# Log Configuration
+# =============================================
+log_schema:
+  host_key: "hostname"
+  message_key: "message"
+  timestamp_key: "timestamp"

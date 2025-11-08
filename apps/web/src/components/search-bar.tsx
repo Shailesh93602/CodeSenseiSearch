@@ -1,20 +1,24 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Search, X, Clock, TrendingUp } from "lucide-react";
+import { useSuggestions } from "@/lib/hooks/use-search";
 
 interface SearchBarProps {
   query: string;
   onQueryChange: (query: string) => void;
+  onSearch?: () => void;
 }
 
-export function SearchBar({ query, onQueryChange }: SearchBarProps) {
+export function SearchBar({ query, onQueryChange, onSearch }: SearchBarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { suggestions, getSuggestions } = useSuggestions();
 
+  // Local recent searches (could be persisted to localStorage)
   const recentSearches = [
     "React useEffect cleanup", 
     "Python async generators",
@@ -27,29 +31,24 @@ export function SearchBar({ query, onQueryChange }: SearchBarProps) {
     "JWT refresh tokens"
   ];
 
-  // Mock suggestions based on query
-  const suggestions = useMemo(() => {
-    const allSuggestions = [
-      "React useEffect Hook cleanup patterns",
-      "Python async/await modern concurrency",
-      "TypeScript advanced generics conditional types",
-      "JWT authentication Node.js refresh tokens", 
-      "CSS Grid layouts container queries",
-      "Go concurrent web scraper worker pools",
-      "JavaScript memory leaks prevention",
-      "Python generators async iterators",
-      "Docker container best practices",
-      "GraphQL query optimization techniques"
-    ];
+  // Get suggestions when query changes
+  useEffect(() => {
+    if (query.length > 2) {
+      const timeoutId = setTimeout(() => {
+        getSuggestions(query);
+      }, 300); // Debounce suggestions
 
+      return () => clearTimeout(timeoutId);
+    }
+  }, [query, getSuggestions]);
+
+  // Filter suggestions to avoid duplicates and limit results
+  const filteredSuggestions = useMemo(() => {
     if (query.length > 0) {
-      const filtered = allSuggestions.filter(suggestion =>
-        suggestion.toLowerCase().includes(query.toLowerCase())
-      );
-      return filtered.slice(0, 5);
+      return suggestions.slice(0, 5);
     }
     return [];
-  }, [query]);
+  }, [query, suggestions]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -58,13 +57,14 @@ export function SearchBar({ query, onQueryChange }: SearchBarProps) {
     }
     if (e.key === 'Enter') {
       setIsOpen(false);
-      // Trigger search
+      onSearch?.();
     }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
     onQueryChange(suggestion);
     setIsOpen(false);
+    onSearch?.();
   };
 
   const clearQuery = () => {
@@ -144,9 +144,9 @@ export function SearchBar({ query, onQueryChange }: SearchBarProps) {
 
               {query.length > 0 && (
                 <>
-                  {suggestions.length > 0 ? (
+                  {filteredSuggestions.length > 0 ? (
                     <CommandGroup heading="Suggestions">
-                      {suggestions.map((suggestion) => (
+                      {filteredSuggestions.map((suggestion) => (
                         <CommandItem
                           key={suggestion}
                           value={suggestion}

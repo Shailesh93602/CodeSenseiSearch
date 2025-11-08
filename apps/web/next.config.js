@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Turbopack configuration (empty to silence webpack config warnings)
+  turbopack: {},
+
   // Experimental features for better performance
   experimental: {
     optimizeCss: true,
@@ -149,7 +152,7 @@ const nextConfig = {
 
   // Output configuration
   output: 'standalone',
-  
+
   // Logging
   logging: {
     fetches: {

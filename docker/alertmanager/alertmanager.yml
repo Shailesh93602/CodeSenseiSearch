@@ -1,0 +1,325 @@
+# Alertmanager Configuration for CodeSenseiSearch Production
+global:
+  # Default SMTP configuration
+  smtp_smarthost: '${SMTP_HOST}:${SMTP_PORT}'
+  smtp_from: '${ALERT_EMAIL_FROM}'
+  smtp_auth_username: '${SMTP_USER}'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  smtp_require_tls: true
+
+  # Default webhook URL for Slack
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+
+# Email template files
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route configuration
+route:
+  # Default receiver for all alerts
+  receiver: 'default-team'
+  
+  # Group alerts by alertname and severity
+  group_by: ['alertname', 'severity', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 24h
+
+  # Routing rules for different alert types
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      group_interval: 30s
+      repeat_interval: 5m
+      continue: true
+
+    # Database alerts
+    - match_re:
+        service: 'postgres|redis'
+      receiver: 'database-team'
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 2h
+
+    # Application alerts
+    - match_re:
+        service: 'web|api|worker'
+      receiver: 'application-team'
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+
+    # Infrastructure alerts
+    - match_re:
+        service: 'nginx|node-exporter|blackbox'
+      receiver: 'infrastructure-team'
+      group_wait: 1m
+      group_interval: 10m
+      repeat_interval: 8h
+
+    # Security alerts
+    - match:
+        category: security
+      receiver: 'security-team'
+      group_wait: 5s
+      group_interval: 30s
+      repeat_interval: 1h
+
+    # Backup alerts
+    - match:
+        service: backup
+      receiver: 'backup-alerts'
+      group_wait: 5m
+      group_interval: 1h
+      repeat_interval: 24h
+
+# Inhibition rules to prevent alert spam
+inhibit_rules:
+  # Stop sending warnings if critical alerts are firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'service', 'instance']
+
+  # Stop sending instance alerts if entire service is down
+  - source_match:
+      service: 'web'
+      alertname: 'ServiceDown'
+    target_match_re:
+      service: 'web'
+      alertname: '.*'
+    equal: ['service']
+
+# Receiver configurations
+receivers:
+  # Default team notifications
+  - name: 'default-team'
+    email_configs:
+      - to: '${DEFAULT_ALERT_EMAIL}'
+        subject: '[CodeSenseiSearch] {{ .GroupLabels.alertname }} - {{ .GroupLabels.severity }}'
+        body: |
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Description:** {{ .Annotations.description }}
+          **Service:** {{ .Labels.service }}
+          **Instance:** {{ .Labels.instance }}
+          **Severity:** {{ .Labels.severity }}
+          **Started:** {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ if .Labels.runbook_url }}**Runbook:** {{ .Labels.runbook_url }}{{ end }}
+          {{ end }}
+        headers:
+          X-Priority: 'normal'
+
+    slack_configs:
+      - channel: '#alerts'
+        title: 'CodeSenseiSearch Alert'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          Service: `{{ .Labels.service }}` | Instance: `{{ .Labels.instance }}` | Severity: `{{ .Labels.severity }}`
+          {{ end }}
+        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+
+  # Critical alerts - immediate response required
+  - name: 'critical-alerts'
+    email_configs:
+      - to: '${CRITICAL_ALERT_EMAIL}'
+        subject: '🚨 CRITICAL: {{ .GroupLabels.alertname }} - Immediate Action Required'
+        body: |
+          CRITICAL ALERT - IMMEDIATE ACTION REQUIRED
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Description:** {{ .Annotations.description }}
+          **Service:** {{ .Labels.service }}
+          **Instance:** {{ .Labels.instance }}
+          **Started:** {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ if .Labels.runbook_url }}**Runbook:** {{ .Labels.runbook_url }}{{ end }}
+          
+          This is a critical alert that requires immediate attention.
+          {{ end }}
+        headers:
+          X-Priority: 'high'
+
+    slack_configs:
+      - channel: '#critical-alerts'
+        title: '🚨 CRITICAL ALERT'
+        text: |
+          <!channel> CRITICAL ALERT - Immediate Action Required
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          Service: `{{ .Labels.service }}` | Instance: `{{ .Labels.instance }}`
+          Started: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+        color: 'danger'
+
+    # PagerDuty integration for critical alerts
+    pagerduty_configs:
+      - routing_key: '${PAGERDUTY_INTEGRATION_KEY}'
+        description: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        details:
+          alert_count: '{{ len .Alerts }}'
+          service: '{{ .GroupLabels.service }}'
+          severity: '{{ .GroupLabels.severity }}'
+
+  # Database team notifications
+  - name: 'database-team'
+    email_configs:
+      - to: '${DATABASE_TEAM_EMAIL}'
+        subject: '[Database] {{ .GroupLabels.alertname }} - {{ .GroupLabels.service }}'
+        body: |
+          Database Alert Notification
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Description:** {{ .Annotations.description }}
+          **Database:** {{ .Labels.service }}
+          **Instance:** {{ .Labels.instance }}
+          **Severity:** {{ .Labels.severity }}
+          **Started:** {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ if .Labels.runbook_url }}**Runbook:** {{ .Labels.runbook_url }}{{ end }}
+          {{ end }}
+
+    slack_configs:
+      - channel: '#database-alerts'
+        title: 'Database Alert'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          Database: `{{ .Labels.service }}` | Instance: `{{ .Labels.instance }}`
+          {{ end }}
+        color: 'warning'
+
+  # Application team notifications
+  - name: 'application-team'
+    email_configs:
+      - to: '${APPLICATION_TEAM_EMAIL}'
+        subject: '[Application] {{ .GroupLabels.alertname }} - {{ .GroupLabels.service }}'
+        body: |
+          Application Alert Notification
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Description:** {{ .Annotations.description }}
+          **Application:** {{ .Labels.service }}
+          **Instance:** {{ .Labels.instance }}
+          **Severity:** {{ .Labels.severity }}
+          **Started:** {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ if .Labels.runbook_url }}**Runbook:** {{ .Labels.runbook_url }}{{ end }}
+          {{ end }}
+
+    slack_configs:
+      - channel: '#app-alerts'
+        title: 'Application Alert'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          App: `{{ .Labels.service }}` | Instance: `{{ .Labels.instance }}`
+          {{ end }}
+        color: '{{ if eq .CommonLabels.severity "critical" }}danger{{ else }}warning{{ end }}'
+
+  # Infrastructure team notifications
+  - name: 'infrastructure-team'
+    email_configs:
+      - to: '${INFRASTRUCTURE_TEAM_EMAIL}'
+        subject: '[Infrastructure] {{ .GroupLabels.alertname }}'
+        body: |
+          Infrastructure Alert Notification
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Description:** {{ .Annotations.description }}
+          **Component:** {{ .Labels.service }}
+          **Instance:** {{ .Labels.instance }}
+          **Severity:** {{ .Labels.severity }}
+          **Started:** {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+    slack_configs:
+      - channel: '#infrastructure-alerts'
+        title: 'Infrastructure Alert'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          Component: `{{ .Labels.service }}` | Instance: `{{ .Labels.instance }}`
+          {{ end }}
+
+  # Security team notifications
+  - name: 'security-team'
+    email_configs:
+      - to: '${SECURITY_TEAM_EMAIL}'
+        subject: '🔒 SECURITY ALERT: {{ .GroupLabels.alertname }}'
+        body: |
+          SECURITY ALERT NOTIFICATION
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Description:** {{ .Annotations.description }}
+          **Service:** {{ .Labels.service }}
+          **Instance:** {{ .Labels.instance }}
+          **Severity:** {{ .Labels.severity }}
+          **Started:** {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          
+          This is a security-related alert that may require immediate investigation.
+          {{ end }}
+        headers:
+          X-Priority: 'high'
+
+    slack_configs:
+      - channel: '#security-alerts'
+        title: '🔒 Security Alert'
+        text: |
+          <!here> Security Alert Detected
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          Service: `{{ .Labels.service }}` | Instance: `{{ .Labels.instance }}`
+          {{ end }}
+        color: 'danger'
+
+  # Backup alerts
+  - name: 'backup-alerts'
+    email_configs:
+      - to: '${BACKUP_ALERT_EMAIL}'
+        subject: '[Backup] {{ .GroupLabels.alertname }}'
+        body: |
+          Backup Alert Notification
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Description:** {{ .Annotations.description }}
+          **Backup Type:** {{ .Labels.backup_type }}
+          **Started:** {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+
+    slack_configs:
+      - channel: '#backup-alerts'
+        title: 'Backup Alert'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          {{ end }}
+
+# Webhook configurations for external integrations
+receivers:
+  - name: 'webhook-teams'
+    webhook_configs:
+      - url: '${TEAMS_WEBHOOK_URL}'
+        send_resolved: true
+        http_config:
+          basic_auth:
+            username: '${WEBHOOK_USERNAME}'
+            password: '${WEBHOOK_PASSWORD}'
+
+# Configuration for silencing alerts
+# Silences can be managed via Alertmanager web UI or amtool CLI

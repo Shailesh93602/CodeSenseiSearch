@@ -195,21 +195,22 @@ export class SearchService {
       const query_sql = `
         SELECT 
           cc.id,
-          cc.content,
-          cc."chunkIndex",
-          cc."repositoryId",
-          cc."questionId",
-          cc.language,
+          cc."chunkText" as content,
+          cc.sequence as "chunkIndex",
+          c."repositoryId",
+          c."questionId",
+          c.language,
           r."fullName" as repository_name,
           r."owner" as repository_owner,
-          r."url" as repository_url,
+          r."htmlUrl" as repository_url,
           q."title" as question_title,
-          q."stackOverflowId" as question_so_id,
-          ts_rank(to_tsvector('english', cc.content), to_tsquery('english', $1)) as rank
-        FROM "ContentChunk" cc
-        LEFT JOIN "Repository" r ON cc."repositoryId" = r.id
-        LEFT JOIN "Question" q ON cc."questionId" = q.id
-        WHERE to_tsvector('english', cc.content) @@ to_tsquery('english', $1)
+          q."questionId" as question_so_id,
+          ts_rank(to_tsvector('english', cc."chunkText"), to_tsquery('english', $1)) as rank
+        FROM "content_chunks" cc
+        LEFT JOIN "contents" c ON cc."contentId" = c.id
+        LEFT JOIN "repositories" r ON c."repositoryId" = r.id
+        LEFT JOIN "questions" q ON c."questionId" = q.id
+        WHERE to_tsvector('english', cc."chunkText") @@ to_tsquery('english', $1)
         ${whereClause}
         ORDER BY rank DESC
         LIMIT $2
@@ -327,15 +328,20 @@ export class SearchService {
     try {
       // Get common terms from content chunks
       const suggestions = await this.prisma.$queryRawUnsafe(
-        `SELECT DISTINCT 
-          UNNEST(regexp_split_to_array(content, '\\W+')) as term
-        FROM "ContentChunk"
-        WHERE content ILIKE $1
-        AND LENGTH(UNNEST(regexp_split_to_array(content, '\\W+'))) > 2
+        `WITH word_list AS (
+          SELECT UNNEST(regexp_split_to_array("chunkText", '\\W+')) as term
+          FROM "content_chunks"
+          WHERE "chunkText" ILIKE $1
+        )
+        SELECT DISTINCT term 
+        FROM word_list
+        WHERE LENGTH(term) > 2
+        AND term ILIKE $2
         ORDER BY term
         LIMIT 10
       `,
         `%${partialQuery}%`,
+        `${partialQuery}%`,
       );
 
       return (suggestions as any[])
@@ -364,10 +370,11 @@ export class SearchService {
       const [embeddingStats, languageStats] = await Promise.all([
         this.vectorService.getEmbeddingStats(),
         this.prisma.$queryRaw`
-          SELECT DISTINCT language
-          FROM "ContentChunk"
-          WHERE language IS NOT NULL
-          ORDER BY language
+          SELECT DISTINCT c.language
+          FROM "contents" c
+          JOIN "content_chunks" cc ON c.id = cc."contentId"
+          WHERE c.language IS NOT NULL
+          ORDER BY c.language
         `,
       ]);
 
@@ -406,17 +413,18 @@ export class SearchService {
       const enrichedData = await this.prisma.$queryRawUnsafe(
         `SELECT 
           cc.id,
-          cc."repositoryId",
-          cc."questionId",
-          cc.language,
+          c."repositoryId",
+          c."questionId",
+          c.language,
           r."fullName" as repository_name,
           r."owner" as repository_owner,
-          r."url" as repository_url,
+          r."htmlUrl" as repository_url,
           q."title" as question_title,
-          q."stackOverflowId" as question_so_id
-        FROM "ContentChunk" cc
-        LEFT JOIN "Repository" r ON cc."repositoryId" = r.id
-        LEFT JOIN "Question" q ON cc."questionId" = q.id
+          q."questionId" as question_so_id
+        FROM "content_chunks" cc
+        LEFT JOIN "contents" c ON cc."contentId" = c.id
+        LEFT JOIN "repositories" r ON c."repositoryId" = r.id
+        LEFT JOIN "questions" q ON c."questionId" = q.id
         WHERE cc.id = ANY($1)
       `,
         chunkIds,

@@ -230,6 +230,7 @@ model ContentChunk {
   endChar   Int?      // Ending character position
   
   // Embedding metadata
+  embedding       Unsupported("vector(1536)")?  // Direct embedding storage for performance
   embeddingStatus EmbeddingStatus @default(PENDING)
   embeddingError  String?
   embeddedAt      DateTime?

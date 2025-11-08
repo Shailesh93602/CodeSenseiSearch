@@ -1,0 +1,276 @@
+# Loki Alerting Rules for CodeSenseiSearch
+groups:
+  # =============================================
+  # Application Error Alerts
+  # =============================================
+  - name: application-errors
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate({service=~"codesenseisearch-.*",level="error"}[5m])) by (service)
+            /
+            sum(rate({service=~"codesenseisearch-.*"}[5m])) by (service)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          category: application
+        annotations:
+          summary: "High error rate detected in {{ $labels.service }}"
+          description: "Error rate is above 5% for {{ $labels.service }}. Current rate: {{ $value | humanizePercentage }}"
+          runbook_url: "https://docs.codesenseisearch.com/runbooks/high-error-rate"
+
+      # Critical error rate
+      - alert: CriticalErrorRate
+        expr: |
+          (
+            sum(rate({service=~"codesenseisearch-.*",level="error"}[5m])) by (service)
+            /
+            sum(rate({service=~"codesenseisearch-.*"}[5m])) by (service)
+          ) > 0.15
+        for: 2m
+        labels:
+          severity: critical
+          category: application
+        annotations:
+          summary: "Critical error rate detected in {{ $labels.service }}"
+          description: "Error rate is above 15% for {{ $labels.service }}. Immediate action required. Current rate: {{ $value | humanizePercentage }}"
+
+      # No logs received
+      - alert: NoLogsReceived
+        expr: |
+          absent_over_time({service=~"codesenseisearch-.*"}[10m])
+        for: 10m
+        labels:
+          severity: warning
+          category: logging
+        annotations:
+          summary: "No logs received from {{ $labels.service }}"
+          description: "No logs have been received from {{ $labels.service }} for the past 10 minutes"
+
+  # =============================================
+  # Security Alerts
+  # =============================================
+  - name: security-alerts
+    rules:
+      # Authentication failures
+      - alert: HighAuthenticationFailures
+        expr: |
+          sum(rate({service="codesenseisearch-api"} |= "authentication failed" [5m])) > 10
+        for: 2m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "High number of authentication failures"
+          description: "More than 10 authentication failures per minute detected. Possible brute force attack."
+
+      # Critical authentication failures
+      - alert: CriticalAuthenticationFailures
+        expr: |
+          sum(rate({service="codesenseisearch-api"} |= "authentication failed" [5m])) > 50
+        for: 1m
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "Critical number of authentication failures"
+          description: "More than 50 authentication failures per minute detected. Likely brute force attack in progress."
+
+      # Suspicious IP activity
+      - alert: SuspiciousIPActivity
+        expr: |
+          sum by (ip_address) (rate({service="nginx"} | json | ip_address != "" [5m])) > 100
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "Suspicious activity from IP {{ $labels.ip_address }}"
+          description: "High request rate from IP {{ $labels.ip_address }}. Possible DoS attack or bot activity."
+
+      # SQL injection attempts
+      - alert: SQLInjectionAttempts
+        expr: |
+          sum(rate({service=~"codesenseisearch-.*"} |~ "(?i)(union|select|drop|insert|update|delete|exec|script)" [5m])) > 1
+        for: 1m
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "SQL injection attempts detected"
+          description: "Potential SQL injection attempts detected in application logs"
+
+  # =============================================
+  # Performance Alerts
+  # =============================================
+  - name: performance-alerts
+    rules:
+      # Slow requests
+      - alert: SlowRequests
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate({service="nginx"} | json | response_time > 5000 [5m])) by (le)
+          ) > 5000
+        for: 10m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "Slow requests detected"
+          description: "95th percentile response time is above 5 seconds"
+
+      # Search performance degradation
+      - alert: SearchPerformanceDegradation
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate({service="search-engine"} | json | response_time > 3000 [5m])) by (le)
+          ) > 3000
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "Search performance degradation"
+          description: "Search response time 95th percentile is above 3 seconds"
+
+      # Database connection errors
+      - alert: DatabaseConnectionErrors
+        expr: |
+          sum(rate({service=~"codesenseisearch-.*"} |= "database connection" |= "error" [5m])) > 5
+        for: 2m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "Database connection errors detected"
+          description: "More than 5 database connection errors per minute"
+
+  # =============================================
+  # Business Logic Alerts
+  # =============================================
+  - name: business-alerts
+    rules:
+      # Search failures
+      - alert: HighSearchFailureRate
+        expr: |
+          (
+            sum(rate({service="search-engine"} | json | results_count = "0" [5m]))
+            /
+            sum(rate({service="search-engine"} [5m]))
+          ) > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "High search failure rate"
+          description: "Search failure rate is above 30%. Users may be having difficulty finding content."
+
+      # User registration errors
+      - alert: UserRegistrationErrors
+        expr: |
+          sum(rate({service="codesenseisearch-api"} |= "user registration" |= "error" [5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "User registration errors detected"
+          description: "More than 2 user registration errors per minute"
+
+      # API rate limiting
+      - alert: HighAPIRateLimiting
+        expr: |
+          sum(rate({service="codesenseisearch-api"} |= "rate limit exceeded" [5m])) > 20
+        for: 5m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "High API rate limiting"
+          description: "More than 20 rate limit violations per minute. Users may be experiencing service degradation."
+
+  # =============================================
+  # Infrastructure Alerts
+  # =============================================
+  - name: infrastructure-alerts
+    rules:
+      # Disk space warnings from logs
+      - alert: DiskSpaceWarningFromLogs
+        expr: |
+          sum(rate({service="system"} |~ "(?i)(disk|space|storage).*(full|low|warning)" [5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+          category: infrastructure
+        annotations:
+          summary: "Disk space warning detected in logs"
+          description: "Disk space warnings found in system logs"
+
+      # Out of memory errors
+      - alert: OutOfMemoryErrors
+        expr: |
+          sum(rate({service=~"codesenseisearch-.*"} |~ "(?i)(out of memory|oom|memory.*error)" [5m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          category: infrastructure
+        annotations:
+          summary: "Out of memory errors detected"
+          description: "Out of memory errors detected in application logs"
+
+      # Container restarts
+      - alert: FrequentContainerRestarts
+        expr: |
+          sum(rate({service=~"codesenseisearch-.*"} |= "container started" [5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          category: infrastructure
+        annotations:
+          summary: "Frequent container restarts detected"
+          description: "More than 2 container restarts per minute detected"
+
+  # =============================================
+  # Data Quality Alerts
+  # =============================================
+  - name: data-quality-alerts
+    rules:
+      # Malformed log entries
+      - alert: MalformedLogEntries
+        expr: |
+          sum(rate({service=~"codesenseisearch-.*"} |~ "(?i)(malformed|invalid|corrupt)" [5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: data-quality
+        annotations:
+          summary: "Malformed log entries detected"
+          description: "Malformed or invalid log entries detected. May indicate data corruption or parsing issues."
+
+      # Missing required fields
+      - alert: MissingRequiredFields
+        expr: |
+          sum(rate({service=~"codesenseisearch-.*"} |~ "missing.*required.*field" [5m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+          category: data-quality
+        annotations:
+          summary: "Missing required fields in logs"
+          description: "Log entries with missing required fields detected"
+
+      # Encoding errors
+      - alert: EncodingErrors
+        expr: |
+          sum(rate({service=~"codesenseisearch-.*"} |~ "(?i)(encoding|charset|utf.*error)" [5m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+          category: data-quality
+        annotations:
+          summary: "Encoding errors detected"
+          description: "Character encoding errors detected in logs"

@@ -44,7 +44,7 @@ export class VectorService {
       const vectorString = `[${embedding.join(',')}]`;
 
       await this.prisma.$executeRawUnsafe(
-        `UPDATE "ContentChunk" 
+        `UPDATE "content_chunks" 
         SET embedding = $1::vector
         WHERE id = $2
       `,
@@ -84,7 +84,7 @@ export class VectorService {
         for (const chunk of chunks) {
           const vectorString = `[${chunk.embedding.join(',')}]`;
           await tx.$executeRawUnsafe(
-            `UPDATE "ContentChunk" 
+            `UPDATE "content_chunks" 
             SET embedding = $1::vector
             WHERE id = $2`,
             vectorString,
@@ -152,19 +152,16 @@ export class VectorService {
       const query = `
         SELECT 
           cc.id,
-          cc.content,
-          cc."chunkIndex",
-          cc."repositoryId",
-          cc."questionId",
+          cc."chunkText" as content,
+          cc.sequence as "chunkIndex",
+          c."repositoryId",
+          c."questionId",
           c.language,
-          c.path,
+          c."filePath" as path,
           c.title,
           (1 - (cc.embedding <=> $1::vector)) as similarity
-        FROM "ContentChunk" cc
-        LEFT JOIN "Content" c ON (
-          (cc."repositoryId" = c."repositoryId") OR 
-          (cc."questionId" = c."questionId")
-        )
+        FROM "content_chunks" cc
+        LEFT JOIN "contents" c ON cc."contentId" = c.id
         ${whereClause}
         ORDER BY cc.embedding <=> $1::vector
         LIMIT $2
@@ -199,7 +196,7 @@ export class VectorService {
     try {
       const result = await this.prisma.$queryRawUnsafe(
         `SELECT embedding::text as embedding_text
-        FROM "ContentChunk"
+        FROM "content_chunks"
         WHERE id = $1 AND embedding IS NOT NULL`,
         chunkId,
       );
@@ -231,7 +228,7 @@ export class VectorService {
   async deleteEmbedding(chunkId: string): Promise<void> {
     try {
       await this.prisma.$executeRawUnsafe(`
-        UPDATE "ContentChunk" 
+        UPDATE "content_chunks" 
         SET embedding = NULL
         WHERE id = $1
       `, chunkId);
@@ -256,11 +253,12 @@ export class VectorService {
     try {
       const stats = await this.prisma.$queryRaw`
         SELECT 
-          COUNT(*) as total_chunks,
-          COUNT(embedding) as chunks_with_embeddings,
-          COUNT(CASE WHEN "repositoryId" IS NOT NULL THEN 1 END) as repository_chunks,
-          COUNT(CASE WHEN "questionId" IS NOT NULL THEN 1 END) as question_chunks
-        FROM "ContentChunk"
+          COUNT(cc.*) as total_chunks,
+          COUNT(cc.embedding) as chunks_with_embeddings,
+          COUNT(CASE WHEN c."repositoryId" IS NOT NULL THEN 1 END) as repository_chunks,
+          COUNT(CASE WHEN c."questionId" IS NOT NULL THEN 1 END) as question_chunks
+        FROM "content_chunks" cc
+        LEFT JOIN "contents" c ON cc."contentId" = c.id
       `;
 
       const result = (stats as any[])[0];
@@ -300,7 +298,7 @@ export class VectorService {
     try {
       await this.prisma.$executeRaw`
         CREATE INDEX CONCURRENTLY IF NOT EXISTS content_chunk_embedding_cosine_idx 
-        ON "ContentChunk" USING ivfflat (embedding vector_cosine_ops)
+        ON "content_chunks" USING ivfflat (embedding vector_cosine_ops)
         WITH (lists = 100)
       `;
       

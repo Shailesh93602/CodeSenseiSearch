@@ -1,0 +1,21 @@
+apiVersion: 1
+
+providers:
+  # Dashboard provider for CodeSenseiSearch
+  - name: 'CodeSenseiSearch Dashboards'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      
+  # System dashboards
+  - name: 'System Monitoring'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: true

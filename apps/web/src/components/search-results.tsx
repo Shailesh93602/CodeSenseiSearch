@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CodeBlock } from "@/components/code-block";
-import { mockSearchResults, filterResults, sortResults } from "@/lib/mock-data";
-import { Github, MessageSquare, BookOpen, Star, ExternalLink, Copy, Eye, User, Calendar, TrendingUp } from "lucide-react";
+import { useSearch } from "@/lib/hooks/use-search";
+import { Github, MessageSquare, BookOpen, Star, ExternalLink, Copy, User, Calendar, TrendingUp } from "lucide-react";
 
 interface Filters {
   source: string;
@@ -24,9 +24,39 @@ export function SearchResults({ query, filters }: SearchResultsProps) {
   const [selectedResult, setSelectedResult] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  // Filter and sort results
-  const filteredResults = filterResults(mockSearchResults, query, filters);
-  const sortedResults = sortResults(filteredResults, filters.sortBy);
+  // Convert filters to API format
+  const apiFilters = {
+    source: filters.source === "all" ? undefined : (filters.source as "github" | "stackoverflow" | "docs"),
+    language: filters.language === "all" ? undefined : filters.language,
+    sortBy: filters.sortBy as "relevance" | "date" | "stars" | "votes",
+    dateRange: filters.dateRange === "all" ? undefined : (filters.dateRange as "week" | "month" | "year"),
+    limit: 20,
+  };
+
+  const {
+    results,
+    loading,
+    error,
+    hasMore,
+    totalResults,
+    searchTime,
+    search,
+    loadMore,
+    retry
+  } = useSearch({
+    initialQuery: query,
+    initialFilters: apiFilters,
+    searchType: 'hybrid', // Default to hybrid search
+    autoSearch: false, // Manual search trigger
+  });
+
+  // Trigger search when query or filters change
+  const filtersString = JSON.stringify(filters);
+  useEffect(() => {
+    if (query.trim()) {
+      search();
+    }
+  }, [query, filtersString, search]);
 
   const copyCode = async (code: string, resultId: string) => {
     try {
@@ -68,15 +98,8 @@ export function SearchResults({ query, filters }: SearchResultsProps) {
   if (!query && Object.values(filters).every(v => v === "all" || v === "relevance")) {
     return (
       <div className="text-center py-12">
-        <div className="text-slate-400 mb-4">
-          <Eye className="h-12 w-12 mx-auto mb-4" />
-        </div>
-        <h3 className="text-lg font-medium text-slate-900 mb-2">Start searching</h3>
-        <p className="text-slate-600">
-          Enter a search query to find code, solutions, and documentation.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <span className="text-sm text-slate-500">Popular searches:</span>
+        <div className="text-slate-600 mb-4">Enter a search query to find code examples, solutions, and documentation</div>
+        <div className="flex flex-wrap gap-2 justify-center">
           {["React hooks", "Python async", "JWT auth", "CSS Grid"].map((term) => (
             <Badge key={term} variant="outline" className="cursor-pointer hover:bg-slate-100">
               {term}
@@ -87,13 +110,50 @@ export function SearchResults({ query, filters }: SearchResultsProps) {
     );
   }
 
+  // Show loading state
+  if (loading && results.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <div className="text-slate-600">Searching for &ldquo;{query}&rdquo;...</div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-red-600 mb-4">Search failed: {error}</div>
+        <Button onClick={retry} variant="outline">
+          Try Again
+        </Button>
+      </div>
+    );
+  }
+
+  // Show no results state
+  if (!loading && results.length === 0 && query) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-slate-600 mb-4">No results found for &ldquo;{query}&rdquo;</div>
+        <div className="text-sm text-slate-500">Try different keywords or check your spelling</div>
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Results Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">
-            {sortedResults.length} results {query && `for "${query}"`}
+            {totalResults} results {query && `for "${query}"`}
+            {searchTime > 0 && (
+              <span className="text-sm text-slate-500 ml-2">
+                ({searchTime}ms)
+              </span>
+            )}
           </h2>
           <p className="text-sm text-slate-600 mt-1">
             Showing results from {filters.source === "all" ? "all sources" : filters.source}
@@ -108,7 +168,7 @@ export function SearchResults({ query, filters }: SearchResultsProps) {
 
       {/* Results List */}
       <div className="space-y-6">
-        {sortedResults.map((result) => {
+        {results.map((result) => {
           const SourceIcon = getSourceIcon(result.source);
           const isExpanded = selectedResult === result.id;
           const isCopied = copiedCode === result.id;
@@ -234,33 +294,17 @@ export function SearchResults({ query, filters }: SearchResultsProps) {
       </div>
 
       {/* Load More */}
-      {sortedResults.length > 0 && sortedResults.length >= 8 && (
+      {hasMore && (
         <div className="text-center mt-8">
-          <Button variant="outline" size="lg" className="px-8">
-            Load more results
+          <Button 
+            variant="outline" 
+            size="lg" 
+            className="px-8"
+            onClick={loadMore}
+            disabled={loading}
+          >
+            {loading ? "Loading..." : "Load more results"}
           </Button>
-        </div>
-      )}
-
-      {/* No Results */}
-      {sortedResults.length === 0 && query && (
-        <div className="text-center py-12">
-          <div className="text-slate-400 mb-4">
-            <Eye className="h-12 w-12 mx-auto mb-4" />
-          </div>
-          <h3 className="text-lg font-medium text-slate-900 mb-2">No results found</h3>
-          <p className="text-slate-600 mb-4">
-            Try adjusting your search query or filters to find what you&apos;re looking for.
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => window.location.href = '/search'}
-            >
-              Clear search
-            </Button>
-          </div>
         </div>
       )}
     </div>

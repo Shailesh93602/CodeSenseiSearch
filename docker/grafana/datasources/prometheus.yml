@@ -1,0 +1,46 @@
+# Grafana Datasource Configuration for CodeSenseiSearch
+apiVersion: 1
+
+datasources:
+  # Prometheus datasource
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      httpMethod: POST
+      timeInterval: "15s"
+      queryTimeout: "60s"
+      
+  # PostgreSQL datasource for application data
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: postgres-primary:5432
+    database: codesenseisearch
+    user: monitoring
+    secureJsonData:
+      password: ${POSTGRES_MONITORING_PASSWORD}
+    jsonData:
+      sslmode: prefer
+      maxOpenConns: 5
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+      postgresVersion: 1500
+      timescaledb: false
+      
+  # Redis datasource for cache metrics
+  - name: Redis
+    type: redis-datasource
+    access: proxy
+    url: redis-primary:6379
+    secureJsonData:
+      password: ${REDIS_PASSWORD}
+    jsonData:
+      client: standalone
+      poolSize: 5
+      timeout: 10
+      pingInterval: 0
+      pipelineWindow: 0

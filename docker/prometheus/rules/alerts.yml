@@ -1,0 +1,412 @@
+# Prometheus Alerting Rules for CodeSenseiSearch Production
+groups:
+  # =============================================
+  # System Resource Alerts
+  # =============================================
+  - name: system-resources
+    rules:
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: node-exporter
+        annotations:
+          summary: "High CPU usage detected on {{ $labels.instance }}"
+          description: "CPU usage is above 80% for more than 5 minutes on {{ $labels.instance }}. Current value: {{ $value }}%"
+          runbook_url: "https://docs.codesenseisearch.com/runbooks/high-cpu"
+
+      - alert: CriticalCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+        for: 2m
+        labels:
+          severity: critical
+          service: node-exporter
+        annotations:
+          summary: "Critical CPU usage detected on {{ $labels.instance }}"
+          description: "CPU usage is above 95% for more than 2 minutes on {{ $labels.instance }}. Immediate action required. Current value: {{ $value }}%"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: node-exporter
+        annotations:
+          summary: "High memory usage detected on {{ $labels.instance }}"
+          description: "Memory usage is above 85% for more than 5 minutes on {{ $labels.instance }}. Current value: {{ $value }}%"
+
+      - alert: CriticalMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          service: node-exporter
+        annotations:
+          summary: "Critical memory usage detected on {{ $labels.instance }}"
+          description: "Memory usage is above 95% for more than 2 minutes on {{ $labels.instance }}. System may become unresponsive. Current value: {{ $value }}%"
+
+      # High disk usage
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: node-exporter
+        annotations:
+          summary: "High disk usage detected on {{ $labels.instance }}"
+          description: "Disk usage is above 85% on {{ $labels.device }} ({{ $labels.mountpoint }}) for {{ $labels.instance }}. Current value: {{ $value }}%"
+
+      - alert: CriticalDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          service: node-exporter
+        annotations:
+          summary: "Critical disk usage detected on {{ $labels.instance }}"
+          description: "Disk usage is above 95% on {{ $labels.device }} ({{ $labels.mountpoint }}) for {{ $labels.instance }}. Disk full imminent. Current value: {{ $value }}%"
+
+      # High load average
+      - alert: HighLoadAverage
+        expr: node_load1 > 0.8 * count by (instance) (node_cpu_seconds_total{mode="idle"})
+        for: 10m
+        labels:
+          severity: warning
+          service: node-exporter
+        annotations:
+          summary: "High load average on {{ $labels.instance }}"
+          description: "Load average is high on {{ $labels.instance }}. Current 1m load: {{ $value }}"
+
+  # =============================================
+  # Service Availability Alerts
+  # =============================================
+  - name: service-availability
+    rules:
+      # Service down
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} on {{ $labels.instance }} has been down for more than 1 minute"
+
+      # Web service health check
+      - alert: WebServiceUnhealthy
+        expr: probe_success{job="blackbox-http", instance=~".*codesenseisearch.com.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: web
+        annotations:
+          summary: "Web service health check failed"
+          description: "Web service at {{ $labels.instance }} is not responding to health checks for more than 2 minutes"
+
+      # API service health check
+      - alert: APIServiceUnhealthy
+        expr: probe_success{job="blackbox-http", instance=~".*api.codesenseisearch.com.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: api
+        annotations:
+          summary: "API service health check failed"
+          description: "API service at {{ $labels.instance }} is not responding to health checks for more than 2 minutes"
+
+      # High HTTP error rate
+      - alert: HighHTTPErrorRate
+        expr: rate(nginx_http_requests_total{status=~"5.."}[5m]) / rate(nginx_http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: nginx
+        annotations:
+          summary: "High HTTP 5xx error rate"
+          description: "HTTP 5xx error rate is above 5% for more than 5 minutes. Current rate: {{ $value | humanizePercentage }}"
+
+      - alert: CriticalHTTPErrorRate
+        expr: rate(nginx_http_requests_total{status=~"5.."}[5m]) / rate(nginx_http_requests_total[5m]) > 0.15
+        for: 2m
+        labels:
+          severity: critical
+          service: nginx
+        annotations:
+          summary: "Critical HTTP 5xx error rate"
+          description: "HTTP 5xx error rate is above 15% for more than 2 minutes. Immediate action required. Current rate: {{ $value | humanizePercentage }}"
+
+  # =============================================
+  # Database Alerts
+  # =============================================
+  - name: database-alerts
+    rules:
+      # PostgreSQL down
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: postgres
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL instance {{ $labels.instance }} has been down for more than 1 minute"
+
+      # High database connections
+      - alert: HighDatabaseConnections
+        expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: postgres
+        annotations:
+          summary: "High database connection usage"
+          description: "Database connection usage is above 80% on {{ $labels.instance }}. Current: {{ $value | humanizePercentage }}"
+
+      - alert: CriticalDatabaseConnections
+        expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          service: postgres
+        annotations:
+          summary: "Critical database connection usage"
+          description: "Database connection usage is above 95% on {{ $labels.instance }}. Connection pool exhaustion imminent. Current: {{ $value | humanizePercentage }}"
+
+      # Slow queries
+      - alert: SlowQueries
+        expr: rate(pg_stat_statements_mean_time_ms[5m]) > 5000
+        for: 10m
+        labels:
+          severity: warning
+          service: postgres
+        annotations:
+          summary: "Slow database queries detected"
+          description: "Average query time is above 5 seconds on {{ $labels.instance }}. Current: {{ $value }}ms"
+
+      # Database replication lag
+      - alert: DatabaseReplicationLag
+        expr: pg_stat_replication_lag_bytes > 100 * 1024 * 1024  # 100MB
+        for: 5m
+        labels:
+          severity: warning
+          service: postgres
+        annotations:
+          summary: "High database replication lag"
+          description: "Database replication lag is above 100MB on {{ $labels.instance }}. Current lag: {{ $value | humanizeBytes }}"
+
+      # Redis down
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redis is down"
+          description: "Redis instance {{ $labels.instance }} has been down for more than 1 minute"
+
+      # High Redis memory usage
+      - alert: HighRedisMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Redis memory usage is above 85% on {{ $labels.instance }}. Current: {{ $value | humanizePercentage }}"
+
+  # =============================================
+  # Application Performance Alerts
+  # =============================================
+  - name: application-performance
+    rules:
+      # High response time
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is above 2 seconds for {{ $labels.service }}. Current: {{ $value }}s"
+
+      - alert: CriticalResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 5
+        for: 2m
+        labels:
+          severity: critical
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "Critical response time detected"
+          description: "95th percentile response time is above 5 seconds for {{ $labels.service }}. Current: {{ $value }}s"
+
+      # High request rate
+      - alert: HighRequestRate
+        expr: rate(http_requests_total[5m]) > 1000
+        for: 10m
+        labels:
+          severity: warning
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "High request rate detected"
+          description: "Request rate is above 1000 req/s for {{ $labels.service }}. Current: {{ $value }} req/s"
+
+      # Application errors
+      - alert: HighApplicationErrorRate
+        expr: rate(http_requests_total{code=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "High application error rate"
+          description: "Application error rate is above 1% for {{ $labels.service }}. Current: {{ $value | humanizePercentage }}"
+
+  # =============================================
+  # Security Alerts
+  # =============================================
+  - name: security-alerts
+    rules:
+      # Failed authentication attempts
+      - alert: HighFailedLoginAttempts
+        expr: rate(auth_failed_attempts_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          service: auth
+          category: security
+        annotations:
+          summary: "High number of failed login attempts"
+          description: "Failed login attempts rate is above 10/minute. Possible brute force attack. Current rate: {{ $value }}/min"
+
+      - alert: CriticalFailedLoginAttempts
+        expr: rate(auth_failed_attempts_total[5m]) > 50
+        for: 1m
+        labels:
+          severity: critical
+          service: auth
+          category: security
+        annotations:
+          summary: "Critical number of failed login attempts"
+          description: "Failed login attempts rate is above 50/minute. Likely brute force attack in progress. Current rate: {{ $value }}/min"
+
+      # SSL certificate expiry
+      - alert: SSLCertificateExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 7 * 24 * 3600  # 7 days
+        for: 1h
+        labels:
+          severity: warning
+          service: ssl
+          category: security
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "SSL certificate for {{ $labels.instance }} expires in less than 7 days"
+
+      - alert: SSLCertificateExpiring
+        expr: probe_ssl_earliest_cert_expiry - time() < 24 * 3600  # 24 hours
+        for: 1h
+        labels:
+          severity: critical
+          service: ssl
+          category: security
+        annotations:
+          summary: "SSL certificate expiring within 24 hours"
+          description: "SSL certificate for {{ $labels.instance }} expires in less than 24 hours. Immediate renewal required"
+
+  # =============================================
+  # Backup and Data Integrity Alerts
+  # =============================================
+  - name: backup-alerts
+    rules:
+      # Backup failure
+      - alert: BackupFailure
+        expr: backup_last_success_timestamp < time() - 25 * 3600  # 25 hours
+        for: 1h
+        labels:
+          severity: critical
+          service: backup
+        annotations:
+          summary: "Backup failure detected"
+          description: "Last successful backup was more than 25 hours ago. Data loss risk increasing"
+
+      # Backup age warning
+      - alert: BackupAgeWarning
+        expr: backup_last_success_timestamp < time() - 20 * 3600  # 20 hours
+        for: 1h
+        labels:
+          severity: warning
+          service: backup
+        annotations:
+          summary: "Backup is getting old"
+          description: "Last successful backup was more than 20 hours ago"
+
+  # =============================================
+  # Network and Connectivity Alerts
+  # =============================================
+  - name: network-alerts
+    rules:
+      # DNS resolution failure
+      - alert: DNSResolutionFailure
+        expr: probe_success{job="blackbox-dns"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: dns
+        annotations:
+          summary: "DNS resolution failure"
+          description: "DNS resolution failed for {{ $labels.instance }}"
+
+      # High network error rate
+      - alert: HighNetworkErrors
+        expr: rate(node_network_receive_errs_total[5m]) + rate(node_network_transmit_errs_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: network
+        annotations:
+          summary: "High network error rate"
+          description: "Network error rate is high on {{ $labels.instance }}. Interface: {{ $labels.device }}"
+
+  # =============================================
+  # Business Logic Alerts
+  # =============================================
+  - name: business-alerts
+    rules:
+      # Search performance degradation
+      - alert: SearchPerformanceDegradation
+        expr: histogram_quantile(0.95, rate(search_request_duration_seconds_bucket[5m])) > 3
+        for: 10m
+        labels:
+          severity: warning
+          service: search
+        annotations:
+          summary: "Search performance degradation"
+          description: "Search response time 95th percentile is above 3 seconds. Current: {{ $value }}s"
+
+      # Low search success rate
+      - alert: LowSearchSuccessRate
+        expr: rate(search_requests_success_total[5m]) / rate(search_requests_total[5m]) < 0.95
+        for: 5m
+        labels:
+          severity: warning
+          service: search
+        annotations:
+          summary: "Low search success rate"
+          description: "Search success rate is below 95%. Current: {{ $value | humanizePercentage }}"
+
+      # Vector database issues
+      - alert: VectorDatabaseIssues
+        expr: rate(vector_search_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: vector-db
+        annotations:
+          summary: "Vector database errors detected"
+          description: "Vector search error rate is above 0.1/s. Current: {{ $value }}/s"

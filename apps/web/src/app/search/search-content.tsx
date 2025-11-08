@@ -92,7 +92,14 @@ export default function SearchContent() {
           {/* Search Results */}
           <div className="flex-1 min-w-0">
             <div className="mb-4 sm:mb-6">
-              <SearchBar query={query} onQueryChange={setQuery} />
+              <SearchBar 
+                query={query} 
+                onQueryChange={setQuery}
+                onSearch={() => {
+                  // Force search trigger when user clicks search or presses enter
+                  // The SearchResults component will handle the actual search
+                }}
+              />
             </div>
             
             {/* Mobile Filter Summary */}
