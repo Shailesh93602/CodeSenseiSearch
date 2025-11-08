@@ -2,24 +2,35 @@
 
 This document provides comprehensive instructions for deploying CodeSenseiSearch to production environments.
 
+## 🎯 Current Deployment Status
+
+> **✅ VERCEL DEPLOYMENT CONFIGURED**  
+> The application is already set up for deployment on Vercel platform. This guide covers additional infrastructure components and local/self-hosted alternatives.
+
 ## 📋 Prerequisites
 
-### System Requirements
+### Vercel Deployment (Current Setup)
+- **Frontend**: Deployed on Vercel with automatic deployments
+- **Database**: External PostgreSQL with pgvector support
+- **API**: Serverless functions or containerized backend
+- **Domain**: Custom domain configured through Vercel
+
+### Self-Hosted Alternative (Optional)
 - **OS**: Ubuntu 20.04+ or CentOS 8+ (Linux x86_64)
 - **RAM**: Minimum 4GB, Recommended 8GB+
 - **Storage**: Minimum 20GB free space, SSD recommended
 - **CPU**: 2+ cores recommended for production workloads
 
-### Required Software
+### Required Software (Self-Hosted)
 - **Docker Engine**: 20.10+
 - **Docker Compose**: 2.0+
 - **Git**: 2.25+
 - **SSL Certificate**: For HTTPS (Let's Encrypt recommended)
 
 ### Domain Setup
-- Primary domain: `codesenseisearch.com`
-- API subdomain: `api.codesenseisearch.com`
-- Staging domain: `staging.codesenseisearch.com` (optional)
+- Primary domain: Already configured with Vercel
+- API subdomain: `api.codesenseisearch.com` (if self-hosting backend)
+- Staging domain: Vercel preview deployments
 
 ## 🔧 Server Setup
 

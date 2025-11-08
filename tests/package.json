@@ -1,0 +1,16 @@
+{
+  "name": "performance-tests",
+  "version": "1.0.0",
+  "description": "Performance testing suite for CodeSenseiSearch",
+  "scripts": {
+    "test:load": "k6 run tests/performance/k6-load-test.js",
+    "test:stress": "k6 run tests/performance/k6-stress-test.js",
+    "test:full": "./tests/performance/run-tests.sh",
+    "test:db": "psql $DATABASE_URL -f tests/performance/db-optimization.sql",
+    "analyze": "node scripts/analyze-results.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "k6": "^0.45.0"
+  }
+}
