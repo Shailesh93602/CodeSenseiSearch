@@ -63,15 +63,12 @@ export class AuthController {
    */
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(
-    @Body(ValidationPipe) loginDto: LoginDto,
-    @Request() req: any,
-  ) {
+  async login(@Body(ValidationPipe) loginDto: LoginDto, @Request() req: any) {
     const userAgent = req.get('User-Agent');
     const ipAddress = req.ip ?? req.connection.remoteAddress;
-    
+
     const result = await this.authService.login(loginDto, userAgent, ipAddress);
-    
+
     return {
       message: 'Login successful',
       user: {
@@ -95,13 +92,13 @@ export class AuthController {
   ) {
     const userAgent = req.get('User-Agent');
     const ipAddress = req.ip ?? req.connection.remoteAddress;
-    
+
     const tokens = await this.authService.refreshTokens(
       body.refreshToken,
       userAgent,
       ipAddress,
     );
-    
+
     return {
       message: 'Tokens refreshed successfully',
       tokens,
@@ -151,7 +148,7 @@ export class AuthController {
       changePasswordDto.currentPassword,
       changePasswordDto.newPassword,
     );
-    
+
     return { message: 'Password changed successfully' };
   }
 
@@ -173,7 +170,7 @@ export class AuthController {
     // For MVP, we'll just return user info
     // In full implementation, we'd generate tokens and redirect to frontend
     const user = req.user;
-    
+
     // For development, return JSON. In production, redirect to frontend with tokens
     if (process.env.NODE_ENV === 'development') {
       return res.json({
@@ -186,7 +183,7 @@ export class AuthController {
         },
       });
     }
-    
+
     // In production, redirect to frontend with token in query params or cookies
     res.redirect(`${process.env.FRONTEND_URL}/auth/success`);
   }

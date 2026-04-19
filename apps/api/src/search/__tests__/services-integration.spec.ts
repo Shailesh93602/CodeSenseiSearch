@@ -29,12 +29,12 @@ describe('Search Services Integration', () => {
           id: 'vector-1',
           content: 'Vector search result',
           similarity: 0.9,
-          metadata: { 
+          metadata: {
             repositoryId: 'repo-1',
-            contentType: 'repository', 
+            contentType: 'repository',
             language: 'typescript',
             title: 'Test Document',
-            path: '/test/file.ts'
+            path: '/test/file.ts',
           },
         },
       ]),
@@ -81,14 +81,16 @@ describe('Search Services Integration', () => {
         totalResults: 0,
         filtersUsed: 0,
       }),
-      applyFiltersToResults: jest.fn().mockImplementation((results, filters) => ({
-        filters: filters,
-        totalResultsBeforeFiltering: results.length,
-        totalResultsAfterFiltering: results.length,
-        filteringTime: 10,
-        appliedFilterCount: Object.keys(filters ?? {}).length || 1, // Ensure at least 1 for testing
-        removedResultsCount: 0,
-      })),
+      applyFiltersToResults: jest
+        .fn()
+        .mockImplementation((results, filters) => ({
+          filters: filters,
+          totalResultsBeforeFiltering: results.length,
+          totalResultsAfterFiltering: results.length,
+          filteringTime: 10,
+          appliedFilterCount: Object.keys(filters ?? {}).length || 1, // Ensure at least 1 for testing
+          removedResultsCount: 0,
+        })),
       getFilterOptions: jest.fn().mockResolvedValue({
         availableLanguages: ['javascript', 'typescript', 'python'],
         availableRepositories: [{ fullName: 'test/repo', id: 'repo-1' }],
@@ -182,40 +184,42 @@ describe('Search Services Integration', () => {
   describe('End-to-End Search Workflow', () => {
     it('should perform complete hybrid search workflow', async () => {
       const query = 'TypeScript interfaces';
-      
+
       // Step 1: Perform hybrid search
       const searchResult = await hybridSearchService.hybridSearch(query);
-      
+
       expect(searchResult).toBeDefined();
       expect(searchResult.query).toBe(query);
       expect(searchResult.searchMethod).toBe('hybrid');
       expect(searchResult.results).toBeDefined();
       expect(searchResult.metadata).toBeDefined();
-      
+
       // Step 2: Apply filters to results
       const filters = {
         languages: ['typescript'],
         minScore: 0.5,
       };
-      
+
       const filterResult = filterService.applyFiltersToResults(
-        searchResult.results, 
-        filters
+        searchResult.results,
+        filters,
       );
-      
+
       expect(filterResult).toBeDefined();
       expect(filterResult.appliedFilterCount).toBeGreaterThan(0);
-      
+
       // Step 3: Rerank the filtered results
       if (searchResult.results.length > 0) {
         const rerankResult = await rerankerService.rerank(
-          query, 
-          searchResult.results
+          query,
+          searchResult.results,
         );
-        
+
         expect(rerankResult).toBeDefined();
         expect(rerankResult.results).toBeDefined();
-        expect(rerankResult.originalResultsCount).toBe(searchResult.results.length);
+        expect(rerankResult.originalResultsCount).toBe(
+          searchResult.results.length,
+        );
       }
     });
 
@@ -231,12 +235,12 @@ describe('Search Services Integration', () => {
           minScore: 0.7,
         },
       };
-      
+
       const result = await hybridSearchService.hybridSearch(query, options);
-      
+
       expect(result.query).toBe(query);
       expect(result.results.length).toBeLessThanOrEqual(10);
-      
+
       if (result.filterInfo) {
         expect(result.filterInfo.appliedFilterCount).toBeGreaterThan(0);
       }
@@ -249,20 +253,21 @@ describe('Search Services Integration', () => {
         maxScore: 0.9,
         repositories: ['test-repo'],
       };
-      
+
       const validation = await filterService.validateFilters(validFilters);
-      
+
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
       expect(validation.sanitizedFilters).toBeDefined();
-      
+
       const invalidFilters = {
         minScore: 1.5, // Invalid: > 1
         maxScore: 0.3, // Invalid: max < min
       };
-      
-      const invalidValidation = await filterService.validateFilters(invalidFilters);
-      
+
+      const invalidValidation =
+        await filterService.validateFilters(invalidFilters);
+
       expect(invalidValidation.isValid).toBe(false);
       expect(invalidValidation.errors.length).toBeGreaterThan(0);
     });
@@ -274,15 +279,15 @@ describe('Search Services Integration', () => {
       const rerankerHealth = await rerankerService.healthCheck();
       const filterHealth = await filterService.healthCheck();
       const fulltextHealth = await fullTextService.healthCheck();
-      
+
       expect(hybridHealth.available).toBe(true);
       expect(hybridHealth.components).toBeDefined();
-      
+
       expect(rerankerHealth.available).toBe(true);
       expect(rerankerHealth.geminiAvailable).toBe(true);
-      
+
       expect(filterHealth.available).toBe(true);
-      
+
       expect(fulltextHealth.available).toBe(true);
     });
   });
@@ -290,7 +295,7 @@ describe('Search Services Integration', () => {
   describe('Performance and Error Handling', () => {
     it('should handle empty search queries gracefully', async () => {
       const emptyResult = await hybridSearchService.hybridSearch('');
-      
+
       // Even empty queries can return results from our mocked services
       expect(emptyResult.results).toBeDefined();
       expect(emptyResult.totalResults).toBeGreaterThanOrEqual(0);
@@ -298,16 +303,17 @@ describe('Search Services Integration', () => {
     });
 
     it('should handle search suggestions', async () => {
-      const suggestions = await hybridSearchService.getHybridSearchSuggestions('Type');
-      
+      const suggestions =
+        await hybridSearchService.getHybridSearchSuggestions('Type');
+
       expect(Array.isArray(suggestions)).toBe(true);
     });
 
     it('should measure search performance', async () => {
       const startTime = Date.now();
-      
+
       await hybridSearchService.hybridSearch('performance test');
-      
+
       const duration = Date.now() - startTime;
       expect(duration).toBeLessThan(5000); // Should complete within 5 seconds
     });
@@ -316,7 +322,7 @@ describe('Search Services Integration', () => {
   describe('Filter Options and Configuration', () => {
     it('should provide available filter options', async () => {
       const options = await filterService.getFilterOptions();
-      
+
       expect(options).toBeDefined();
       expect(options.availableLanguages).toBeDefined();
       expect(options.availableRepositories).toBeDefined();
@@ -329,9 +335,9 @@ describe('Search Services Integration', () => {
         repositories: ['test-repo'],
         minScore: 0.5,
       };
-      
+
       const query = filterService.buildFilterQuery(filters);
-      
+
       expect(query).toBeDefined();
       expect(query.whereClause).toBeDefined();
       expect(query.parameters).toBeDefined();

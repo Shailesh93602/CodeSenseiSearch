@@ -35,10 +35,7 @@ export class VectorService {
   /**
    * Store embedding vector for a content chunk
    */
-  async storeEmbedding(
-    chunkId: string,
-    embedding: number[],
-  ): Promise<void> {
+  async storeEmbedding(chunkId: string, embedding: number[]): Promise<void> {
     try {
       // Convert embedding array to PostgreSQL vector format
       const vectorString = `[${embedding.join(',')}]`;
@@ -208,16 +205,21 @@ export class VectorService {
       const embeddingText = (result as any[])[0].embedding_text;
       // Parse vector string back to array
       // Replace regex-based removal of brackets (lint flagged) with safe slicing
-      const trimmed = (typeof embeddingText === 'string' && embeddingText.startsWith('[') && embeddingText.endsWith(']'))
-        ? embeddingText.slice(1, -1)
-        : String(embeddingText);
+      const trimmed =
+        typeof embeddingText === 'string' &&
+        embeddingText.startsWith('[') &&
+        embeddingText.endsWith(']')
+          ? embeddingText.slice(1, -1)
+          : String(embeddingText);
       const embedding = trimmed
         .split(',')
         .map((val: string) => parseFloat(val.trim()));
 
       return embedding;
     } catch (error) {
-      this.logger.error(`Failed to get embedding for chunk ${chunkId}: ${error.message}`);
+      this.logger.error(
+        `Failed to get embedding for chunk ${chunkId}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -227,15 +229,20 @@ export class VectorService {
    */
   async deleteEmbedding(chunkId: string): Promise<void> {
     try {
-      await this.prisma.$executeRawUnsafe(`
+      await this.prisma.$executeRawUnsafe(
+        `
         UPDATE "content_chunks" 
         SET embedding = NULL
         WHERE id = $1
-      `, chunkId);
+      `,
+        chunkId,
+      );
 
       this.logger.debug(`Deleted embedding for chunk ${chunkId}`);
     } catch (error) {
-      this.logger.error(`Failed to delete embedding for chunk ${chunkId}: ${error.message}`);
+      this.logger.error(
+        `Failed to delete embedding for chunk ${chunkId}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -268,7 +275,8 @@ export class VectorService {
       return {
         totalChunks,
         chunksWithEmbeddings,
-        embeddingCoverage: totalChunks > 0 ? chunksWithEmbeddings / totalChunks : 0,
+        embeddingCoverage:
+          totalChunks > 0 ? chunksWithEmbeddings / totalChunks : 0,
         repositoryChunks: parseInt(result.repository_chunks),
         questionChunks: parseInt(result.question_chunks),
       };
@@ -301,7 +309,7 @@ export class VectorService {
         ON "content_chunks" USING ivfflat (embedding vector_cosine_ops)
         WITH (lists = 100)
       `;
-      
+
       this.logger.log('Vector index created successfully');
     } catch (error) {
       this.logger.warn(`Failed to create vector index: ${error.message}`);
@@ -328,7 +336,7 @@ export class VectorService {
       });
 
       // Filter out the original chunk
-      return results.filter(result => result.id !== chunkId);
+      return results.filter((result) => result.id !== chunkId);
     } catch (error) {
       this.logger.error(`Failed to find similar chunks: ${error.message}`);
       throw error;

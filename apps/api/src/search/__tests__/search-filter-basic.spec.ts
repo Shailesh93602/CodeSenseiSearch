@@ -14,10 +14,10 @@ describe('SearchFilterService - Basic Functionality', () => {
       score: 0.9,
       combinedRank: 0.85,
       searchMethod: 'vector' as const,
-      metadata: { 
+      metadata: {
         source: 'repository' as const,
         language: 'typescript',
-        repositoryName: 'ts-guide'
+        repositoryName: 'ts-guide',
       },
     },
     {
@@ -27,9 +27,9 @@ describe('SearchFilterService - Basic Functionality', () => {
       score: 0.7,
       combinedRank: 0.65,
       searchMethod: 'text' as const,
-      metadata: { 
+      metadata: {
         source: 'question' as const,
-        language: 'javascript'
+        language: 'javascript',
       },
     },
   ];

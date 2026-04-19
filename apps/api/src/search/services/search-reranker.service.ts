@@ -40,10 +40,7 @@ export class SearchRerankerService {
     options: RerankerOptions = {},
   ): Promise<RerankerResponse> {
     const startTime = Date.now();
-    const {
-      maxResults = 10,
-      includeReasonlng = false,
-    } = options;
+    const { maxResults = 10, includeReasonlng = false } = options;
 
     let rerankerUsed = false;
 
@@ -84,8 +81,10 @@ export class SearchRerankerService {
         rerankedResultsCount: Math.min(rerankedResults.length, maxResults),
       };
     } catch (error) {
-      this.logger.warn(`Reranking failed, using original order: ${error.message}`);
-      
+      this.logger.warn(
+        `Reranking failed, using original order: ${error.message}`,
+      );
+
       // Fallback to original results on error
       return {
         results: results.slice(0, maxResults).map((result, index) => ({
@@ -116,9 +115,13 @@ export class SearchRerankerService {
 
       // Get Gemini's reranking response
       const response = await this.geminiService.generateText(prompt);
-      
+
       // Parse the response and apply reranking
-      const rerankedResults = this.parseRerankerResponse(response, results, includeReasoning);
+      const rerankedResults = this.parseRerankerResponse(
+        response,
+        results,
+        includeReasoning,
+      );
 
       return rerankedResults;
     } catch (error) {
@@ -176,19 +179,19 @@ Ranking:`;
     try {
       const lines = response.trim().split('\n');
       const rankingLine = lines[0].trim();
-      
+
       // Parse the ranking (e.g., "3,1,5,2,4")
       const rankedIndices = rankingLine
         .split(',')
-        .map(num => parseInt(num.trim()) - 1) // Convert to 0-based index
-        .filter(index => index >= 0 && index < originalResults.length);
+        .map((num) => parseInt(num.trim()) - 1) // Convert to 0-based index
+        .filter((index) => index >= 0 && index < originalResults.length);
 
       // Extract reasoning if requested
       let reasoning: string | undefined;
       if (includeReasoning && lines.length > 1) {
         reasoning = lines
           .slice(1)
-          .filter(line => line.toLowerCase().startsWith('reason:'))
+          .filter((line) => line.toLowerCase().startsWith('reason:'))
           .join(' ')
           .replace(/^reason:\s*/i, '');
       }
@@ -200,14 +203,14 @@ Ranking:`;
       // Add reranked results in new order
       rankedIndices.forEach((originalIndex, newRank) => {
         if (usedIndices.has(originalIndex)) return; // Skip duplicates
-        
+
         const originalResult = originalResults[originalIndex];
         if (originalResult) {
           usedIndices.add(originalIndex);
           rerankedResults.push({
             ...originalResult,
             originalRank: originalIndex + 1,
-            rerankedScore: 1 - (newRank / rankedIndices.length), // Higher score for better rank
+            rerankedScore: 1 - newRank / rankedIndices.length, // Higher score for better rank
             rerankedRank: newRank + 1,
             rerankedReason: newRank < 3 ? reasoning : undefined,
           });
@@ -229,7 +232,7 @@ Ranking:`;
       return rerankedResults;
     } catch (error) {
       this.logger.warn(`Failed to parse reranker response: ${error.message}`);
-      
+
       // Fallback: return original order with reranked structure
       return originalResults.map((result, index) => ({
         ...result,
@@ -251,30 +254,33 @@ Ranking:`;
     const startTime = Date.now();
 
     try {
-      const queryTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 2);
-      
+      const queryTerms = query
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((term) => term.length > 2);
+
       // Score results based on query term frequency and position
       const scoredResults = results.map((result, index) => {
         const titleWords = result.title.toLowerCase().split(/\s+/);
         const contentWords = result.content.toLowerCase().split(/\s+/);
-        
+
         let score = result.combinedRank; // Start with original score
-        
+
         // Boost for query terms in title
-        const titleMatches = queryTerms.filter(term => 
-          titleWords.some(word => word.includes(term))
+        const titleMatches = queryTerms.filter((term) =>
+          titleWords.some((word) => word.includes(term)),
         ).length;
         score += titleMatches * 0.3;
-        
+
         // Boost for query terms in content
-        const contentMatches = queryTerms.filter(term =>
-          contentWords.some(word => word.includes(term))
+        const contentMatches = queryTerms.filter((term) =>
+          contentWords.some((word) => word.includes(term)),
         ).length;
         score += contentMatches * 0.1;
-        
+
         // Boost for exact query term matches
-        const exactTitleMatches = queryTerms.filter(term =>
-          titleWords.includes(term)
+        const exactTitleMatches = queryTerms.filter((term) =>
+          titleWords.includes(term),
         ).length;
         score += exactTitleMatches * 0.2;
 
@@ -301,7 +307,7 @@ Ranking:`;
       });
     } catch (error) {
       this.logger.error(`Statistical reranking failed: ${error.message}`);
-      
+
       // Return original results
       return Promise.resolve({
         results: results.slice(0, maxResults).map((result, index) => ({
@@ -328,7 +334,7 @@ Ranking:`;
   }> {
     try {
       const geminiAvailable = this.geminiService.isAvailable();
-      
+
       return Promise.resolve({
         available: true, // Statistical fallback is always available
         geminiAvailable,

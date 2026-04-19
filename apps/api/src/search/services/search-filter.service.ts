@@ -29,72 +29,91 @@ export class SearchFilterService {
 
     try {
       // Validate date ranges
-      if (filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo) {
+      if (
+        filters.dateFrom &&
+        filters.dateTo &&
+        filters.dateFrom > filters.dateTo
+      ) {
         errors.push('dateFrom cannot be after dateTo');
       }
 
-      if (filters.lastModifiedFrom && filters.lastModifiedTo && 
-          filters.lastModifiedFrom > filters.lastModifiedTo) {
+      if (
+        filters.lastModifiedFrom &&
+        filters.lastModifiedTo &&
+        filters.lastModifiedFrom > filters.lastModifiedTo
+      ) {
         errors.push('lastModifiedFrom cannot be after lastModifiedTo');
       }
 
       // Validate size ranges
-      if (filters.minSize !== undefined && filters.maxSize !== undefined && 
-          filters.minSize > filters.maxSize) {
+      if (
+        filters.minSize !== undefined &&
+        filters.maxSize !== undefined &&
+        filters.minSize > filters.maxSize
+      ) {
         errors.push('minSize cannot be greater than maxSize');
       }
 
       // Validate score ranges
-      if (filters.minScore !== undefined && filters.maxScore !== undefined && 
-          filters.minScore > filters.maxScore) {
+      if (
+        filters.minScore !== undefined &&
+        filters.maxScore !== undefined &&
+        filters.minScore > filters.maxScore
+      ) {
         errors.push('minScore cannot be greater than maxScore');
       }
 
       // Sanitize arrays
       if (filters.languages) {
         sanitizedFilters.languages = filters.languages
-          .filter(lang => lang && lang.trim().length > 0)
-          .map(lang => lang.toLowerCase().trim());
+          .filter((lang) => lang && lang.trim().length > 0)
+          .map((lang) => lang.toLowerCase().trim());
       }
 
       if (filters.fileTypes) {
         sanitizedFilters.fileTypes = filters.fileTypes
-          .filter(type => type && type.trim().length > 0)
-          .map(type => type.toLowerCase().trim());
+          .filter((type) => type && type.trim().length > 0)
+          .map((type) => type.toLowerCase().trim());
       }
 
       if (filters.extensions) {
         sanitizedFilters.extensions = filters.extensions
-          .filter(ext => ext && ext.trim().length > 0)
-          .map(ext => ext.startsWith('.') ? ext.toLowerCase() : `.${ext.toLowerCase()}`);
+          .filter((ext) => ext && ext.trim().length > 0)
+          .map((ext) =>
+            ext.startsWith('.') ? ext.toLowerCase() : `.${ext.toLowerCase()}`,
+          );
       }
 
       // Validate enum values
       if (filters.contentTypes) {
         const validContentTypes = Object.values(ContentType);
-        sanitizedFilters.contentTypes = filters.contentTypes.filter(type => 
-          validContentTypes.includes(type)
+        sanitizedFilters.contentTypes = filters.contentTypes.filter((type) =>
+          validContentTypes.includes(type),
         );
-        
-        const invalidTypes = filters.contentTypes.filter(type => 
-          !validContentTypes.includes(type)
+
+        const invalidTypes = filters.contentTypes.filter(
+          (type) => !validContentTypes.includes(type),
         );
         if (invalidTypes.length > 0) {
-          warnings.push(`Invalid content types removed: ${invalidTypes.join(', ')}`);
+          warnings.push(
+            `Invalid content types removed: ${invalidTypes.join(', ')}`,
+          );
         }
       }
 
       if (filters.sources) {
         const validSources = Object.values(ContentSource);
-        sanitizedFilters.sources = filters.sources.filter(source => 
-          validSources.includes(source)
+        sanitizedFilters.sources = filters.sources.filter((source) =>
+          validSources.includes(source),
         );
-        
-        const invalidSources = filters.sources.filter(source => 
-          !validSources.includes(source)
+
+        const invalidSources = filters.sources.filter(
+          (source) => !validSources.includes(source),
         );
         if (invalidSources.length > 0) {
-          warnings.push(`Invalid sources removed: ${invalidSources.join(', ')}`);
+          warnings.push(
+            `Invalid sources removed: ${invalidSources.join(', ')}`,
+          );
         }
       }
 
@@ -218,7 +237,7 @@ export class SearchFilterService {
           return condition;
         });
         whereConditions.push(`(${pathConditions.join(' OR ')})`);
-        parameters.push(...filters.pathIncludes.map(path => `%${path}%`));
+        parameters.push(...filters.pathIncludes.map((path) => `%${path}%`));
       }
 
       if (filters.pathExcludes && filters.pathExcludes.length > 0) {
@@ -228,7 +247,7 @@ export class SearchFilterService {
           return condition;
         });
         whereConditions.push(`(${pathConditions.join(' AND ')})`);
-        parameters.push(...filters.pathExcludes.map(path => `%${path}%`));
+        parameters.push(...filters.pathExcludes.map((path) => `%${path}%`));
       }
 
       // Boolean filters
@@ -275,9 +294,10 @@ export class SearchFilterService {
         paramIndex++;
       }
 
-      const whereClause = whereConditions.length > 0 
-        ? `WHERE ${whereConditions.join(' AND ')}`
-        : '';
+      const whereClause =
+        whereConditions.length > 0
+          ? `WHERE ${whereConditions.join(' AND ')}`
+          : '';
 
       // Build full-text search filters
       let textSearchFilters = '';
@@ -325,19 +345,31 @@ export class SearchFilterService {
       ]);
 
       return {
-        availableLanguages: languages.map(l => l.language),
+        availableLanguages: languages.map((l) => l.language),
         availableRepositories: repositories,
-        availableFileTypes: fileTypes.map(f => f.fileType),
-        availableExtensions: extensions.map(e => e.extension),
+        availableFileTypes: fileTypes.map((f) => f.fileType),
+        availableExtensions: extensions.map((e) => e.extension),
         availableContentTypes: Object.values(ContentType),
         availableSources: Object.values(ContentSource),
         availableTags: [], // TODO: Implement when tags table exists
-        
-        languageCounts: languages.reduce((acc, l) => ({ ...acc, [l.language]: l.count }), {}),
-        repositoryCounts: repositories.reduce((acc, r) => ({ ...acc, [r.fullName]: 0 }), {}), // TODO: Add counts
-        fileTypeCounts: fileTypes.reduce((acc, f) => ({ ...acc, [f.fileType]: f.count }), {}),
-        sourceCounts: sources.reduce((acc, s) => ({ ...acc, [s.source]: s.count }), {}),
-        
+
+        languageCounts: languages.reduce(
+          (acc, l) => ({ ...acc, [l.language]: l.count }),
+          {},
+        ),
+        repositoryCounts: repositories.reduce(
+          (acc, r) => ({ ...acc, [r.fullName]: 0 }),
+          {},
+        ), // TODO: Add counts
+        fileTypeCounts: fileTypes.reduce(
+          (acc, f) => ({ ...acc, [f.fileType]: f.count }),
+          {},
+        ),
+        sourceCounts: sources.reduce(
+          (acc, s) => ({ ...acc, [s.source]: s.count }),
+          {},
+        ),
+
         dateRange,
         sizeRange,
       };
@@ -382,29 +414,31 @@ export class SearchFilterService {
 
       // Apply score filters
       if (filters.minScore !== undefined) {
-        filteredResults = filteredResults.filter(result => 
-          (result as any).score >= filters.minScore!
+        filteredResults = filteredResults.filter(
+          (result) => (result as any).score >= filters.minScore!,
         );
       }
 
       if (filters.maxScore !== undefined) {
-        filteredResults = filteredResults.filter(result => 
-          (result as any).score <= filters.maxScore!
+        filteredResults = filteredResults.filter(
+          (result) => (result as any).score <= filters.maxScore!,
         );
       }
 
       // Apply metadata-based filters
       if (filters.languages && filters.languages.length > 0) {
-        filteredResults = filteredResults.filter(result => 
-          result.metadata?.language && 
-          filters.languages!.includes(result.metadata.language.toLowerCase())
+        filteredResults = filteredResults.filter(
+          (result) =>
+            result.metadata?.language &&
+            filters.languages!.includes(result.metadata.language.toLowerCase()),
         );
       }
 
       if (filters.sources && filters.sources.length > 0) {
-        filteredResults = filteredResults.filter(result => 
-          result.metadata?.source && 
-          filters.sources!.includes(result.metadata.source)
+        filteredResults = filteredResults.filter(
+          (result) =>
+            result.metadata?.source &&
+            filters.sources!.includes(result.metadata.source),
         );
       }
 
@@ -417,7 +451,8 @@ export class SearchFilterService {
         totalResultsAfterFiltering: filteredResults.length,
         filteringTime,
         appliedFilterCount,
-        removedResultsCount: totalResultsBeforeFiltering - filteredResults.length,
+        removedResultsCount:
+          totalResultsBeforeFiltering - filteredResults.length,
       };
     } catch (error) {
       this.logger.error(`Failed to apply filters: ${error.message}`);
@@ -437,7 +472,7 @@ export class SearchFilterService {
    */
   private countAppliedFilters(filters: SearchFilters): number {
     let count = 0;
-    
+
     Object.entries(filters).forEach(([, value]) => {
       if (value !== undefined && value !== null) {
         if (Array.isArray(value) && value.length > 0) {
@@ -447,16 +482,20 @@ export class SearchFilterService {
         }
       }
     });
-    
+
     return count;
   }
 
   /**
    * Helper methods for getting filter options from database
    */
-  private async getAvailableLanguages(): Promise<Array<{ language: string; count: number }>> {
+  private async getAvailableLanguages(): Promise<
+    Array<{ language: string; count: number }>
+  > {
     try {
-      const result = await this.prisma.$queryRaw<Array<{ language: string; count: bigint }>>`
+      const result = await this.prisma.$queryRaw<
+        Array<{ language: string; count: bigint }>
+      >`
         SELECT language, COUNT(*) as count
         FROM content
         WHERE language IS NOT NULL AND language != ''
@@ -465,7 +504,7 @@ export class SearchFilterService {
         LIMIT 50
       `;
 
-      return result.map(r => ({
+      return result.map((r) => ({
         language: r.language,
         count: Number(r.count),
       }));
@@ -477,11 +516,13 @@ export class SearchFilterService {
 
   private async getAvailableRepositories(): Promise<RepositoryInfo[]> {
     try {
-      const result = await this.prisma.$queryRaw<Array<{
-        repository: string;
-        repository_owner: string;
-        is_public: boolean;
-      }>>`
+      const result = await this.prisma.$queryRaw<
+        Array<{
+          repository: string;
+          repository_owner: string;
+          is_public: boolean;
+        }>
+      >`
         SELECT DISTINCT repository, repository_owner, is_public
         FROM content
         WHERE repository IS NOT NULL AND repository != ''
@@ -489,7 +530,7 @@ export class SearchFilterService {
         LIMIT 100
       `;
 
-      return result.map(r => ({
+      return result.map((r) => ({
         id: `${r.repository_owner}/${r.repository}`,
         name: r.repository,
         owner: r.repository_owner,
@@ -497,14 +538,20 @@ export class SearchFilterService {
         isPublic: r.is_public,
       }));
     } catch (error) {
-      this.logger.warn(`Failed to get available repositories: ${error.message}`);
+      this.logger.warn(
+        `Failed to get available repositories: ${error.message}`,
+      );
       return [];
     }
   }
 
-  private async getAvailableFileTypes(): Promise<Array<{ fileType: string; count: number }>> {
+  private async getAvailableFileTypes(): Promise<
+    Array<{ fileType: string; count: number }>
+  > {
     try {
-      const result = await this.prisma.$queryRaw<Array<{ file_type: string; count: bigint }>>`
+      const result = await this.prisma.$queryRaw<
+        Array<{ file_type: string; count: bigint }>
+      >`
         SELECT file_type, COUNT(*) as count
         FROM content
         WHERE file_type IS NOT NULL AND file_type != ''
@@ -513,7 +560,7 @@ export class SearchFilterService {
         LIMIT 30
       `;
 
-      return result.map(r => ({
+      return result.map((r) => ({
         fileType: r.file_type,
         count: Number(r.count),
       }));
@@ -523,9 +570,13 @@ export class SearchFilterService {
     }
   }
 
-  private async getAvailableExtensions(): Promise<Array<{ extension: string; count: number }>> {
+  private async getAvailableExtensions(): Promise<
+    Array<{ extension: string; count: number }>
+  > {
     try {
-      const result = await this.prisma.$queryRaw<Array<{ file_extension: string; count: bigint }>>`
+      const result = await this.prisma.$queryRaw<
+        Array<{ file_extension: string; count: bigint }>
+      >`
         SELECT file_extension, COUNT(*) as count
         FROM content
         WHERE file_extension IS NOT NULL AND file_extension != ''
@@ -534,7 +585,7 @@ export class SearchFilterService {
         LIMIT 30
       `;
 
-      return result.map(r => ({
+      return result.map((r) => ({
         extension: r.file_extension,
         count: Number(r.count),
       }));
@@ -544,9 +595,13 @@ export class SearchFilterService {
     }
   }
 
-  private async getAvailableSources(): Promise<Array<{ source: string; count: number }>> {
+  private async getAvailableSources(): Promise<
+    Array<{ source: string; count: number }>
+  > {
     try {
-      const result = await this.prisma.$queryRaw<Array<{ source: string; count: bigint }>>`
+      const result = await this.prisma.$queryRaw<
+        Array<{ source: string; count: bigint }>
+      >`
         SELECT source, COUNT(*) as count
         FROM content
         WHERE source IS NOT NULL AND source != ''
@@ -554,7 +609,7 @@ export class SearchFilterService {
         ORDER BY count DESC
       `;
 
-      return result.map(r => ({
+      return result.map((r) => ({
         source: r.source,
         count: Number(r.count),
       }));
@@ -566,10 +621,12 @@ export class SearchFilterService {
 
   private async getDateRange(): Promise<{ earliest: Date; latest: Date }> {
     try {
-      const result = await this.prisma.$queryRaw<Array<{
-        earliest: Date;
-        latest: Date;
-      }>>`
+      const result = await this.prisma.$queryRaw<
+        Array<{
+          earliest: Date;
+          latest: Date;
+        }>
+      >`
         SELECT 
           MIN(created_at) as earliest,
           MAX(created_at) as latest
@@ -577,10 +634,12 @@ export class SearchFilterService {
         WHERE created_at IS NOT NULL
       `;
 
-      return result[0] || {
-        earliest: new Date(),
-        latest: new Date(),
-      };
+      return (
+        result[0] || {
+          earliest: new Date(),
+          latest: new Date(),
+        }
+      );
     } catch (error) {
       this.logger.warn(`Failed to get date range: ${error.message}`);
       return {
@@ -592,10 +651,12 @@ export class SearchFilterService {
 
   private async getSizeRange(): Promise<{ min: number; max: number }> {
     try {
-      const result = await this.prisma.$queryRaw<Array<{
-        min_size: number;
-        max_size: number;
-      }>>`
+      const result = await this.prisma.$queryRaw<
+        Array<{
+          min_size: number;
+          max_size: number;
+        }>
+      >`
         SELECT 
           MIN(LENGTH(content)) as min_size,
           MAX(LENGTH(content)) as max_size
@@ -626,14 +687,15 @@ export class SearchFilterService {
   }> {
     try {
       const filterOptions = await this.getFilterOptions();
-      
+
       return {
         available: true,
         databaseConnected: true,
-        filterOptionsCount: filterOptions.availableLanguages.length +
-                          filterOptions.availableRepositories.length +
-                          filterOptions.availableFileTypes.length +
-                          filterOptions.availableExtensions.length,
+        filterOptionsCount:
+          filterOptions.availableLanguages.length +
+          filterOptions.availableRepositories.length +
+          filterOptions.availableFileTypes.length +
+          filterOptions.availableExtensions.length,
       };
     } catch {
       return {

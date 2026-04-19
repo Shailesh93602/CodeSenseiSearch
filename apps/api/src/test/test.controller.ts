@@ -616,10 +616,10 @@ export class TestController {
   async testFullTextSearchHealth() {
     try {
       const health = await this.fullTextSearchService.healthCheck();
-      
+
       return {
         success: true,
-        message: health.available 
+        message: health.available
           ? 'Full-text search is ready'
           : 'Full-text search not available',
         health,
@@ -636,14 +636,17 @@ export class TestController {
   }
 
   @Post('search/fulltext')
-  async testFullTextSearch(@Body() body: { 
-    query: string; 
-    language?: string;
-    contentType?: string;
-    repository?: string;
-    limit?: number;
-    offset?: number;
-  }) {
+  async testFullTextSearch(
+    @Body()
+    body: {
+      query: string;
+      language?: string;
+      contentType?: string;
+      repository?: string;
+      limit?: number;
+      offset?: number;
+    },
+  ) {
     try {
       if (!body.query || body.query.trim().length === 0) {
         return {
@@ -675,11 +678,9 @@ export class TestController {
   }
 
   @Post('search/fulltext/chunks')
-  async testFullTextChunkSearch(@Body() body: { 
-    query: string; 
-    limit?: number;
-    offset?: number;
-  }) {
+  async testFullTextChunkSearch(
+    @Body() body: { query: string; limit?: number; offset?: number },
+  ) {
     try {
       if (!body.query || body.query.trim().length === 0) {
         return {
@@ -718,7 +719,8 @@ export class TestController {
         };
       }
 
-      const suggestions = await this.fullTextSearchService.getSuggestions(query);
+      const suggestions =
+        await this.fullTextSearchService.getSuggestions(query);
 
       return {
         success: true,
@@ -758,10 +760,10 @@ export class TestController {
   async testHybridSearchHealth() {
     try {
       const health = await this.hybridSearchService.healthCheck();
-      
+
       return {
         success: true,
-        message: health.available 
+        message: health.available
           ? 'Hybrid search is ready'
           : 'Hybrid search not fully available',
         health,
@@ -781,17 +783,20 @@ export class TestController {
   }
 
   @Post('search/hybrid')
-  async testHybridSearch(@Body() body: { 
-    query: string; 
-    limit?: number;
-    vectorWeight?: number;
-    textWeight?: number;
-    vectorThreshold?: number;
-    source?: string;
-    language?: string;
-    contentType?: string;
-    repository?: string;
-  }) {
+  async testHybridSearch(
+    @Body()
+    body: {
+      query: string;
+      limit?: number;
+      vectorWeight?: number;
+      textWeight?: number;
+      vectorThreshold?: number;
+      source?: string;
+      language?: string;
+      contentType?: string;
+      repository?: string;
+    },
+  ) {
     try {
       if (!body.query || body.query.trim().length === 0) {
         return {
@@ -805,7 +810,7 @@ export class TestController {
         vectorWeight: body.vectorWeight ?? 0.6,
         textWeight: body.textWeight ?? 0.4,
         vectorThreshold: body.vectorThreshold ?? 0.7,
-        source: body.source as any ?? 'all',
+        source: (body.source as any) ?? 'all',
         language: body.language,
         contentType: body.contentType,
         repository: body.repository,
@@ -840,7 +845,8 @@ export class TestController {
         };
       }
 
-      const suggestions = await this.hybridSearchService.getHybridSearchSuggestions(query);
+      const suggestions =
+        await this.hybridSearchService.getHybridSearchSuggestions(query);
 
       return {
         success: true,
@@ -898,40 +904,59 @@ export class TestController {
           {
             id: 'test-1',
             title: 'TypeScript Interface Tutorial',
-            content: 'Learn how to create and use TypeScript interfaces for better type safety...',
+            content:
+              'Learn how to create and use TypeScript interfaces for better type safety...',
             score: 0.9,
             vectorScore: 0.85,
             textScore: 0.95,
             combinedRank: 0.9,
-            metadata: { source: 'github', language: 'typescript', repository: 'test/repo' },
+            metadata: {
+              source: 'github',
+              language: 'typescript',
+              repository: 'test/repo',
+            },
           },
           {
             id: 'test-2',
             title: 'JavaScript Objects and Interfaces',
-            content: 'Understanding the difference between JavaScript objects and TypeScript interfaces...',
+            content:
+              'Understanding the difference between JavaScript objects and TypeScript interfaces...',
             score: 0.8,
             vectorScore: 0.75,
             textScore: 0.85,
             combinedRank: 0.8,
-            metadata: { source: 'stackoverflow', language: 'javascript', repository: null },
+            metadata: {
+              source: 'stackoverflow',
+              language: 'javascript',
+              repository: null,
+            },
           },
           {
             id: 'test-3',
             title: 'Advanced Interface Patterns',
-            content: 'Explore advanced TypeScript interface patterns including generics and conditional types...',
+            content:
+              'Explore advanced TypeScript interface patterns including generics and conditional types...',
             score: 0.7,
             vectorScore: 0.7,
             textScore: 0.7,
             combinedRank: 0.7,
-            metadata: { source: 'github', language: 'typescript', repository: 'advanced/patterns' },
+            metadata: {
+              source: 'github',
+              language: 'typescript',
+              repository: 'advanced/patterns',
+            },
           },
         ];
       }
 
-      const rerankerResult = await this.searchRerankerService.rerank(query, results, {
-        maxResults: 10,
-        includeReasonlng: true,
-      });
+      const rerankerResult = await this.searchRerankerService.rerank(
+        query,
+        results,
+        {
+          maxResults: 10,
+          includeReasonlng: true,
+        },
+      );
 
       return {
         success: true,
@@ -949,7 +974,9 @@ export class TestController {
   }
 
   @Post('search/reranker/statistical')
-  async testStatisticalReranker(@Body() body: { query: string; results?: any[] }) {
+  async testStatisticalReranker(
+    @Body() body: { query: string; results?: any[] },
+  ) {
     try {
       const { query, results: providedResults } = body;
 
@@ -968,12 +995,17 @@ export class TestController {
           {
             id: 'test-1',
             title: 'Basic Programming Concepts',
-            content: 'Introduction to fundamental programming concepts and practices...',
+            content:
+              'Introduction to fundamental programming concepts and practices...',
             score: 0.6,
             vectorScore: 0.6,
             textScore: 0.6,
             combinedRank: 0.6,
-            metadata: { source: 'github', language: 'javascript', repository: 'basic/concepts' },
+            metadata: {
+              source: 'github',
+              language: 'javascript',
+              repository: 'basic/concepts',
+            },
           },
           {
             id: 'test-2',
@@ -983,22 +1015,36 @@ export class TestController {
             vectorScore: 0.5,
             textScore: 0.5,
             combinedRank: 0.5,
-            metadata: { source: 'stackoverflow', language: 'typescript', repository: null },
+            metadata: {
+              source: 'stackoverflow',
+              language: 'typescript',
+              repository: null,
+            },
           },
           {
             id: 'test-3',
             title: 'General Development Guide',
-            content: 'A comprehensive guide to software development methodologies...',
+            content:
+              'A comprehensive guide to software development methodologies...',
             score: 0.7,
             vectorScore: 0.7,
             textScore: 0.7,
             combinedRank: 0.7,
-            metadata: { source: 'github', language: 'python', repository: 'dev/guide' },
+            metadata: {
+              source: 'github',
+              language: 'python',
+              repository: 'dev/guide',
+            },
           },
         ];
       }
 
-      const rerankerResult = await this.searchRerankerService.rerankWithStatistics(query, results, 10);
+      const rerankerResult =
+        await this.searchRerankerService.rerankWithStatistics(
+          query,
+          results,
+          10,
+        );
 
       return {
         success: true,
@@ -1073,7 +1119,8 @@ export class TestController {
         };
       }
 
-      const validation = await this.searchFilterService.validateFilters(filters);
+      const validation =
+        await this.searchFilterService.validateFilters(filters);
 
       return {
         success: true,
@@ -1090,11 +1137,9 @@ export class TestController {
   }
 
   @Post('search/hybrid/filtered')
-  async testHybridSearchWithFilters(@Body() body: { 
-    query: string; 
-    filters?: any;
-    options?: any;
-  }) {
+  async testHybridSearchWithFilters(
+    @Body() body: { query: string; filters?: any; options?: any },
+  ) {
     try {
       const { query, filters, options = {} } = body;
 
@@ -1111,7 +1156,10 @@ export class TestController {
         filters: filters ?? {},
       };
 
-      const searchResult = await this.hybridSearchService.hybridSearch(query, searchOptions);
+      const searchResult = await this.hybridSearchService.hybridSearch(
+        query,
+        searchOptions,
+      );
 
       return {
         success: true,
@@ -1129,10 +1177,7 @@ export class TestController {
   }
 
   @Post('search/filters/apply')
-  testApplyFiltersToResults(@Body() body: { 
-    results: any[];
-    filters: any;
-  }) {
+  testApplyFiltersToResults(@Body() body: { results: any[]; filters: any }) {
     try {
       const { results, filters } = body;
 
@@ -1151,31 +1196,49 @@ export class TestController {
       }
 
       // Mock some results if none provided
-      const mockResults = results.length > 0 ? results : [
-        {
-          id: 'test-1',
-          content: 'TypeScript interface example',
-          title: 'TypeScript Interfaces Guide',
-          score: 0.9,
-          metadata: { source: 'github', language: 'typescript', repository: 'ts/examples' },
-        },
-        {
-          id: 'test-2',
-          content: 'JavaScript object patterns',
-          title: 'JS Object Patterns',
-          score: 0.7,
-          metadata: { source: 'stackoverflow', language: 'javascript', repository: null },
-        },
-        {
-          id: 'test-3',
-          content: 'Python class definitions',
-          title: 'Python Classes',
-          score: 0.6,
-          metadata: { source: 'github', language: 'python', repository: 'py/examples' },
-        },
-      ];
+      const mockResults =
+        results.length > 0
+          ? results
+          : [
+              {
+                id: 'test-1',
+                content: 'TypeScript interface example',
+                title: 'TypeScript Interfaces Guide',
+                score: 0.9,
+                metadata: {
+                  source: 'github',
+                  language: 'typescript',
+                  repository: 'ts/examples',
+                },
+              },
+              {
+                id: 'test-2',
+                content: 'JavaScript object patterns',
+                title: 'JS Object Patterns',
+                score: 0.7,
+                metadata: {
+                  source: 'stackoverflow',
+                  language: 'javascript',
+                  repository: null,
+                },
+              },
+              {
+                id: 'test-3',
+                content: 'Python class definitions',
+                title: 'Python Classes',
+                score: 0.6,
+                metadata: {
+                  source: 'github',
+                  language: 'python',
+                  repository: 'py/examples',
+                },
+              },
+            ];
 
-      const appliedFilters = this.searchFilterService.applyFiltersToResults(mockResults, filters);
+      const appliedFilters = this.searchFilterService.applyFiltersToResults(
+        mockResults,
+        filters,
+      );
 
       return {
         success: true,
@@ -1215,7 +1278,7 @@ export class TestController {
         });
       }
 
-      // Create a sample repository  
+      // Create a sample repository
       const repository = await this.prismaService.repository.create({
         data: {
           sourceId: source.id,
@@ -1329,7 +1392,8 @@ export function useCounter(initialValue: number = 0): CounterState {
       const chunk1 = await this.prismaService.contentChunk.create({
         data: {
           contentId: readmeContent.id,
-          chunkText: 'React Hooks allow you to use state and other React features without writing a class component. They were introduced in React 16.8 and have become the standard way to write React components.',
+          chunkText:
+            'React Hooks allow you to use state and other React features without writing a class component. They were introduced in React 16.8 and have become the standard way to write React components.',
           chunkHash: 'chunk1-hash-' + Date.now(),
           sequence: 0,
           startLine: 5,

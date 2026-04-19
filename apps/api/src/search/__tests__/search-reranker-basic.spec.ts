@@ -50,10 +50,10 @@ describe('SearchRerankerService - Basic Functionality', () => {
 
   it('should rerank results successfully', async () => {
     const query = 'TypeScript interfaces';
-    
+
     // Ensure Gemini generates text to trigger reranking
     geminiService.generateText.mockResolvedValue('Based on relevance: 1, 2');
-    
+
     const result = await service.rerank(query, mockResults);
 
     expect(result).toBeDefined();

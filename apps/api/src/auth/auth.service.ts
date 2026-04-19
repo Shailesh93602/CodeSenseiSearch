@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../services/prisma.service';
@@ -115,7 +120,6 @@ export class AuthService {
           preferredRepos: [],
           theme: 'system',
           // Store password hash temporarily in preferences until we have proper auth tables
-          // @ts-expect-error - temporary solution for MVP
           preferences: { passwordHash },
         },
       });
@@ -130,7 +134,11 @@ export class AuthService {
   /**
    * Login user with email and password
    */
-  async login(credentials: LoginCredentials, userAgent?: string, ipAddress?: string): Promise<{ user: AuthUser; tokens: AuthTokens }> {
+  async login(
+    credentials: LoginCredentials,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<{ user: AuthUser; tokens: AuthTokens }> {
     const { email, password } = credentials;
 
     // Find user by email
@@ -143,7 +151,6 @@ export class AuthService {
     }
 
     // Get password hash from preferences (temporary solution)
-    // @ts-expect-error - temporary solution for MVP
     const passwordHash = user.preferences?.passwordHash;
     if (!passwordHash) {
       throw new UnauthorizedException('Invalid email or password');
@@ -167,7 +174,11 @@ export class AuthService {
   /**
    * Refresh access token using refresh token
    */
-  async refreshTokens(refreshToken: string, userAgent?: string, ipAddress?: string): Promise<AuthTokens> {
+  async refreshTokens(
+    refreshToken: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<AuthTokens> {
     try {
       // Verify refresh token
       this.jwtService.verify(refreshToken, {
@@ -227,7 +238,7 @@ export class AuthService {
 
     // Check if JWT is blacklisted (session revoked)
     const session = Array.from(this.sessions.values()).find(
-      s => s.userId === user.id && !s.isRevoked && s.expiresAt > new Date()
+      (s) => s.userId === user.id && !s.isRevoked && s.expiresAt > new Date(),
     );
 
     if (!session) {
@@ -251,7 +262,11 @@ export class AuthService {
   /**
    * Change user password
    */
-  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -261,14 +276,16 @@ export class AuthService {
     }
 
     // Get current password hash
-    // @ts-expect-error - temporary solution for MVP
     const currentPasswordHash = user.preferences?.passwordHash;
     if (!currentPasswordHash) {
       throw new UnauthorizedException('No password set for this account');
     }
 
     // Verify current password
-    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, currentPasswordHash);
+    const isCurrentPasswordValid = await bcrypt.compare(
+      currentPassword,
+      currentPasswordHash,
+    );
     if (!isCurrentPasswordValid) {
       throw new UnauthorizedException('Current password is incorrect');
     }
@@ -283,10 +300,9 @@ export class AuthService {
     await this.prisma.user.update({
       where: { id: userId },
       data: {
-        // @ts-expect-error - temporary solution for MVP
-        preferences: { 
+        preferences: {
           ...(user as any).preferences,
-          passwordHash: newPasswordHash 
+          passwordHash: newPasswordHash,
         },
       },
     });
@@ -298,9 +314,13 @@ export class AuthService {
   /**
    * Generate JWT tokens and create session
    */
-  private generateTokens(user: any, userAgent?: string, ipAddress?: string): AuthTokens {
+  private generateTokens(
+    user: any,
+    userAgent?: string,
+    ipAddress?: string,
+  ): AuthTokens {
     const jwtId = this.generateRandomToken();
-    
+
     // Create JWT payload
     const jwtPayload: JwtPayload = {
       sub: user.id,
@@ -382,19 +402,27 @@ export class AuthService {
    */
   private validatePassword(password: string): void {
     if (password.length < 8) {
-      throw new BadRequestException('Password must be at least 8 characters long');
+      throw new BadRequestException(
+        'Password must be at least 8 characters long',
+      );
     }
-    
+
     if (!/(?=.*[a-z])/.test(password)) {
-      throw new BadRequestException('Password must contain at least one lowercase letter');
+      throw new BadRequestException(
+        'Password must contain at least one lowercase letter',
+      );
     }
-    
+
     if (!/(?=.*[A-Z])/.test(password)) {
-      throw new BadRequestException('Password must contain at least one uppercase letter');
+      throw new BadRequestException(
+        'Password must contain at least one uppercase letter',
+      );
     }
-    
+
     if (!/(?=.*\d)/.test(password)) {
-      throw new BadRequestException('Password must contain at least one number');
+      throw new BadRequestException(
+        'Password must contain at least one number',
+      );
     }
   }
 

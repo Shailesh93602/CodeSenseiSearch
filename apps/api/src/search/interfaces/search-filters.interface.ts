@@ -1,41 +1,41 @@
 export interface SearchFilters {
   // Language filters
   languages?: string[];
-  
+
   // Repository filters
   repositories?: string[];
   repositoryOwners?: string[];
-  
+
   // Date range filters
   dateFrom?: Date;
   dateTo?: Date;
   lastModifiedFrom?: Date;
   lastModifiedTo?: Date;
-  
+
   // File type filters
   fileTypes?: string[];
   extensions?: string[];
-  
+
   // Content type filters
   contentTypes?: ContentType[];
   sources?: ContentSource[];
-  
+
   // Size filters
   minSize?: number;
   maxSize?: number;
-  
+
   // Score filters
   minScore?: number;
   maxScore?: number;
-  
+
   // Tag filters
   tags?: string[];
   excludeTags?: string[];
-  
+
   // Path filters
   pathIncludes?: string[];
   pathExcludes?: string[];
-  
+
   // Advanced filters
   hasCode?: boolean;
   hasDocumentation?: boolean;
@@ -71,19 +71,19 @@ export interface FilterOptions {
   availableContentTypes: ContentType[];
   availableSources: ContentSource[];
   availableTags: string[];
-  
+
   // Filter counts (for UI)
   languageCounts: Record<string, number>;
   repositoryCounts: Record<string, number>;
   fileTypeCounts: Record<string, number>;
   sourceCounts: Record<string, number>;
-  
+
   // Date ranges
   dateRange: {
     earliest: Date;
     latest: Date;
   };
-  
+
   // Size ranges
   sizeRange: {
     min: number;
@@ -124,10 +124,10 @@ export interface SearchFilterQuery {
   parameters: any[];
   joins: string[];
   orderBy?: string;
-  
+
   // Vector search modifications
   vectorFilters?: Record<string, any>;
-  
+
   // Full-text search modifications
   textSearchFilters?: string;
 }

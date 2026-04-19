@@ -1,10 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { GeminiService } from '../../services/gemini.service';
-import { VectorService, VectorSearchResult } from '../../services/vector.service';
-import { FullTextSearchService, FullTextSearchResult } from './fulltext-search.service';
+import {
+  VectorService,
+  VectorSearchResult,
+} from '../../services/vector.service';
+import {
+  FullTextSearchService,
+  FullTextSearchResult,
+} from './fulltext-search.service';
 import { SearchFilterService } from './search-filter.service';
 import { PrismaService } from '../../services/prisma.service';
-import { SearchFilters, AppliedFilters } from '../interfaces/search-filters.interface';
+import {
+  SearchFilters,
+  AppliedFilters,
+} from '../interfaces/search-filters.interface';
 
 export interface HybridSearchResult {
   id: string;
@@ -110,13 +119,15 @@ export class HybridSearchService {
             source,
             language,
             repositoryId,
-          }).then(result => {
-            vectorResults = result.results;
-            embeddingGenerated = result.embeddingGenerated;
-            vectorSearchUsed = result.used;
-          }).catch(error => {
-            this.logger.warn(`Vector search failed: ${error.message}`);
           })
+            .then((result) => {
+              vectorResults = result.results;
+              embeddingGenerated = result.embeddingGenerated;
+              vectorSearchUsed = result.used;
+            })
+            .catch((error) => {
+              this.logger.warn(`Vector search failed: ${error.message}`);
+            }),
         );
       }
 
@@ -127,12 +138,14 @@ export class HybridSearchService {
           language,
           contentType,
           repository,
-        }).then(result => {
-          textResults = result.results;
-          textSearchUsed = result.used;
-        }).catch(error => {
-          this.logger.warn(`Full-text search failed: ${error.message}`);
         })
+          .then((result) => {
+            textResults = result.results;
+            textSearchUsed = result.used;
+          })
+          .catch((error) => {
+            this.logger.warn(`Full-text search failed: ${error.message}`);
+          }),
       );
 
       // Wait for both searches to complete
@@ -144,28 +157,35 @@ export class HybridSearchService {
         textResults,
         vectorWeight,
         textWeight,
-        limit
+        limit,
       );
 
       // 4. Apply filters if provided
       let filterInfo: AppliedFilters | undefined;
       if (options.filters) {
-        const validation = await this.searchFilterService.validateFilters(options.filters);
+        const validation = await this.searchFilterService.validateFilters(
+          options.filters,
+        );
         if (validation.isValid) {
           filterInfo = this.searchFilterService.applyFiltersToResults(
             mergedResults,
-            validation.sanitizedFilters
+            validation.sanitizedFilters,
           );
-          mergedResults = mergedResults.slice(0, filterInfo.totalResultsAfterFiltering);
+          mergedResults = mergedResults.slice(
+            0,
+            filterInfo.totalResultsAfterFiltering,
+          );
         } else {
-          this.logger.warn(`Filter validation failed: ${validation.errors.join(', ')}`);
+          this.logger.warn(
+            `Filter validation failed: ${validation.errors.join(', ')}`,
+          );
         }
       }
 
       const searchTime = Date.now() - startTime;
 
       this.logger.log(
-        `Hybrid search completed in ${searchTime}ms: ${vectorResults.length} vector + ${textResults.length} text → ${mergedResults.length} merged results`
+        `Hybrid search completed in ${searchTime}ms: ${vectorResults.length} vector + ${textResults.length} text → ${mergedResults.length} merged results`,
       );
 
       return {
@@ -201,7 +221,7 @@ export class HybridSearchService {
       source: string;
       language?: string;
       repositoryId?: string;
-    }
+    },
   ): Promise<{
     results: VectorSearchResult[];
     embeddingGenerated: boolean;
@@ -209,13 +229,14 @@ export class HybridSearchService {
   }> {
     try {
       // Generate embedding for the search query
-      const queryEmbedding = await this.geminiService.generateQueryEmbedding(query);
-      
+      const queryEmbedding =
+        await this.geminiService.generateQueryEmbedding(query);
+
       // Perform vector search
       const results = await this.vectorService.searchSimilar(queryEmbedding, {
         limit: options.limit,
         threshold: options.threshold,
-        contentType: options.source === 'all' ? 'all' : options.source as any,
+        contentType: options.source === 'all' ? 'all' : (options.source as any),
         language: options.language,
         repositoryId: options.repositoryId,
       });
@@ -245,7 +266,7 @@ export class HybridSearchService {
       language?: string;
       contentType?: string;
       repository?: string;
-    }
+    },
   ): Promise<{
     results: FullTextSearchResult[];
     used: boolean;
@@ -280,14 +301,18 @@ export class HybridSearchService {
     textResults: FullTextSearchResult[],
     vectorWeight: number,
     textWeight: number,
-    limit: number
+    limit: number,
   ): HybridSearchResult[] {
     const mergedMap = new Map<string, HybridSearchResult>();
 
     // Process vector search results
     vectorResults.forEach((result, index) => {
-      const normalizedScore = this.normalizeVectorScore(result.similarity, index, vectorResults.length);
-      
+      const normalizedScore = this.normalizeVectorScore(
+        result.similarity,
+        index,
+        vectorResults.length,
+      );
+
       mergedMap.set(result.id, {
         id: result.id,
         content: result.content,
@@ -298,7 +323,10 @@ export class HybridSearchService {
         combinedRank: normalizedScore * vectorWeight,
         searchMethod: 'vector',
         metadata: {
-          source: result.metadata.contentType === 'repository' ? 'repository' : 'question',
+          source:
+            result.metadata.contentType === 'repository'
+              ? 'repository'
+              : 'question',
           repositoryId: result.metadata.repositoryId,
           questionId: result.metadata.questionId,
           contentType: result.metadata.contentType,
@@ -311,16 +339,21 @@ export class HybridSearchService {
 
     // Process text search results and merge
     textResults.forEach((result, index) => {
-      const normalizedScore = this.normalizeTextScore(result.rank, index, textResults.length);
+      const normalizedScore = this.normalizeTextScore(
+        result.rank,
+        index,
+        textResults.length,
+      );
       const existingResult = mergedMap.get(result.id);
 
       if (existingResult) {
         // Merge with existing vector result
         existingResult.textRank = result.rank;
-        existingResult.combinedRank = 
-          (existingResult.score * vectorWeight) + (normalizedScore * textWeight);
+        existingResult.combinedRank =
+          existingResult.score * vectorWeight + normalizedScore * textWeight;
         existingResult.searchMethod = 'both';
-        existingResult.metadata.repositoryName = result.repositoryName ?? undefined;
+        existingResult.metadata.repositoryName =
+          result.repositoryName ?? undefined;
       } else {
         // Add as new text-only result
         mergedMap.set(result.id, {
@@ -333,7 +366,10 @@ export class HybridSearchService {
           combinedRank: normalizedScore * textWeight,
           searchMethod: 'text',
           metadata: {
-            source: result.contentType === 'REPOSITORY_FILE' ? 'repository' : 'question',
+            source:
+              result.contentType === 'REPOSITORY_FILE'
+                ? 'repository'
+                : 'question',
             language: result.language ?? undefined,
             contentType: result.contentType,
             repositoryName: result.repositoryName ?? undefined,
@@ -351,7 +387,11 @@ export class HybridSearchService {
   /**
    * Normalize vector similarity scores (0-1 range)
    */
-  private normalizeVectorScore(similarity: number, position: number, total: number): number {
+  private normalizeVectorScore(
+    similarity: number,
+    position: number,
+    total: number,
+  ): number {
     // Combine similarity score with position-based decay
     const positionPenalty = 1 - (position / total) * 0.1; // Small position penalty
     return Math.max(0, Math.min(1, similarity * positionPenalty));
@@ -360,7 +400,11 @@ export class HybridSearchService {
   /**
    * Normalize text search rank scores
    */
-  private normalizeTextScore(rank: number, position: number, total: number): number {
+  private normalizeTextScore(
+    rank: number,
+    position: number,
+    total: number,
+  ): number {
     // Convert rank to 0-1 score with position-based decay
     const maxRank = Math.max(rank, 1); // Avoid division by zero
     const baseScore = Math.min(1, rank / maxRank);
@@ -371,14 +415,20 @@ export class HybridSearchService {
   /**
    * Get hybrid search suggestions combining both vector and text suggestions
    */
-  async getHybridSearchSuggestions(partialQuery: string, limit = 10): Promise<string[]> {
+  async getHybridSearchSuggestions(
+    partialQuery: string,
+    limit = 10,
+  ): Promise<string[]> {
     try {
       const suggestions = new Set<string>();
 
       // Get text-based suggestions
       try {
-        const textSuggestions = await this.fullTextSearchService.getSuggestions(partialQuery, limit);
-        textSuggestions.forEach(s => suggestions.add(s));
+        const textSuggestions = await this.fullTextSearchService.getSuggestions(
+          partialQuery,
+          limit,
+        );
+        textSuggestions.forEach((s) => suggestions.add(s));
       } catch (error) {
         this.logger.warn(`Text suggestions failed: ${error.message}`);
       }

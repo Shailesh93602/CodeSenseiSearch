@@ -58,9 +58,9 @@ describe('FullTextSearchService - Basic Functionality', () => {
       ])
       .mockResolvedValueOnce([{ count: '1' }]); // Mock count query
 
-    const options = { 
+    const options = {
       query: 'TypeScript interfaces',
-      limit: 10 
+      limit: 10,
     };
 
     const result = await service.search(options);
@@ -90,10 +90,10 @@ describe('FullTextSearchService - Basic Functionality', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ count: '0' }]);
 
-    const options = { 
+    const options = {
       query: 'TypeScript interfaces',
       language: 'typescript',
-      limit: 5 
+      limit: 5,
     };
 
     const result = await service.search(options);

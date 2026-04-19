@@ -45,7 +45,9 @@ export class FullTextSearchService {
   /**
    * Perform full-text search using PostgreSQL's built-in text search
    */
-  async search(options: FullTextSearchOptions): Promise<FullTextSearchResponse> {
+  async search(
+    options: FullTextSearchOptions,
+  ): Promise<FullTextSearchResponse> {
     const startTime = Date.now();
     const {
       query,
@@ -100,7 +102,9 @@ export class FullTextSearchService {
   /**
    * Get count of search results for pagination
    */
-  private async getSearchCount(options: FullTextSearchOptions): Promise<number> {
+  private async getSearchCount(
+    options: FullTextSearchOptions,
+  ): Promise<number> {
     const { query, language, contentType, repository } = options;
 
     try {
@@ -142,13 +146,15 @@ export class FullTextSearchService {
     try {
       this.logger.log(`Performing chunk search for: "${query}"`);
 
-      const results = await this.prisma.$queryRaw<Array<{
-        id: string;
-        chunkText: string;
-        sequence: number;
-        contentId: string;
-        rank: number;
-      }>>`
+      const results = await this.prisma.$queryRaw<
+        Array<{
+          id: string;
+          chunkText: string;
+          sequence: number;
+          contentId: string;
+          rank: number;
+        }>
+      >`
         SELECT 
           cc.id,
           cc."chunkText",
@@ -194,7 +200,7 @@ export class FullTextSearchService {
         LIMIT ${limit}
       `;
 
-      return results.map(r => r.title).filter(Boolean);
+      return results.map((r) => r.title).filter(Boolean);
     } catch (error) {
       this.logger.warn('Failed to get search suggestions:', error);
       return [];
@@ -231,9 +237,9 @@ export class FullTextSearchService {
       ]);
 
       return {
-        languages: languages.map(l => l.language).filter(Boolean),
-        contentTypes: contentTypes.map(c => c.contentType),
-        repositories: repositories.map(r => r.fullName),
+        languages: languages.map((l) => l.language).filter(Boolean),
+        contentTypes: contentTypes.map((c) => c.contentType),
+        repositories: repositories.map((r) => r.fullName),
       };
     } catch (error) {
       this.logger.error('Failed to get filter options:', error);
@@ -256,7 +262,9 @@ export class FullTextSearchService {
   }> {
     try {
       // Check if search indexes exist
-      const indexResult = await this.prisma.$queryRaw<Array<{ exists: boolean }>>`
+      const indexResult = await this.prisma.$queryRaw<
+        Array<{ exists: boolean }>
+      >`
         SELECT EXISTS (
           SELECT 1 
           FROM pg_indexes 

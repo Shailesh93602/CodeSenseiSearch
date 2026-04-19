@@ -11,7 +11,24 @@ import { SearchFilterService } from './services/search-filter.service';
 
 @Module({
   controllers: [SearchController],
-  providers: [SearchService, GeminiService, VectorService, PrismaService, FullTextSearchService, HybridSearchService, SearchRerankerService, SearchFilterService],
-  exports: [SearchService, GeminiService, VectorService, FullTextSearchService, HybridSearchService, SearchRerankerService, SearchFilterService],
+  providers: [
+    SearchService,
+    GeminiService,
+    VectorService,
+    PrismaService,
+    FullTextSearchService,
+    HybridSearchService,
+    SearchRerankerService,
+    SearchFilterService,
+  ],
+  exports: [
+    SearchService,
+    GeminiService,
+    VectorService,
+    FullTextSearchService,
+    HybridSearchService,
+    SearchRerankerService,
+    SearchFilterService,
+  ],
 })
 export class SearchModule {}

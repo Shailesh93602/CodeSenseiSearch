@@ -67,10 +67,15 @@ export class CacheService {
       const keys = await this.redis.keys(pattern);
       if (keys.length > 0) {
         await this.redis.del(...keys);
-        this.logger.debug(`Invalidated ${keys.length} cache entries matching: ${pattern}`);
+        this.logger.debug(
+          `Invalidated ${keys.length} cache entries matching: ${pattern}`,
+        );
       }
     } catch (error) {
-      this.logger.error(`Cache pattern invalidation error for ${pattern}:`, error);
+      this.logger.error(
+        `Cache pattern invalidation error for ${pattern}:`,
+        error,
+      );
     }
   }
 
@@ -108,7 +113,10 @@ export class CacheService {
   /**
    * Get cached search results
    */
-  async getCachedSearchResults(query: string, filters: any): Promise<any[] | null> {
+  async getCachedSearchResults(
+    query: string,
+    filters: any,
+  ): Promise<any[] | null> {
     const key = this.generateSearchCacheKey(query, filters);
     return this.get<any[]>(key);
   }
@@ -116,7 +124,11 @@ export class CacheService {
   /**
    * Cache user data
    */
-  async cacheUserData(userId: string, userData: any, ttl = 7200): Promise<void> {
+  async cacheUserData(
+    userId: string,
+    userData: any,
+    ttl = 7200,
+  ): Promise<void> {
     const key = `user:${userId}`;
     await this.set(key, userData, ttl);
   }
@@ -132,7 +144,11 @@ export class CacheService {
   /**
    * Cache content metadata
    */
-  async cacheContentMetadata(contentId: string, metadata: any, ttl = 3600): Promise<void> {
+  async cacheContentMetadata(
+    contentId: string,
+    metadata: any,
+    ttl = 3600,
+  ): Promise<void> {
     const key = `content:${contentId}`;
     await this.set(key, metadata, ttl);
   }
@@ -168,12 +184,12 @@ export class CacheService {
     try {
       const info = await this.redis.info('stats');
       const memory = await this.redis.info('memory');
-      
+
       const hits = this.extractStatValue(info, 'keyspace_hits');
       const misses = this.extractStatValue(info, 'keyspace_misses');
       const total = hits + misses;
       const hitRate = total > 0 ? (hits / total) * 100 : 0;
-      
+
       const memoryUsage = this.extractStatValue(memory, 'used_memory_human');
 
       return {
@@ -211,12 +227,15 @@ export class CacheService {
   /**
    * Health check for Redis connection
    */
-  async healthCheck(): Promise<{ status: 'healthy' | 'unhealthy'; latency?: number }> {
+  async healthCheck(): Promise<{
+    status: 'healthy' | 'unhealthy';
+    latency?: number;
+  }> {
     try {
       const start = Date.now();
       await this.redis.ping();
       const latency = Date.now() - start;
-      
+
       return { status: 'healthy', latency };
     } catch (error) {
       this.logger.error('Redis health check failed:', error);
