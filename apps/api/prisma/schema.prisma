@@ -229,8 +229,13 @@ model ContentChunk {
   startChar Int?      // Starting character position
   endChar   Int?      // Ending character position
   
-  // Embedding metadata
-  embedding       Unsupported("vector(1536)")?  // Direct embedding storage for performance
+  // Embedding metadata.
+  // Dimension matches Gemini's text-embedding-004 output (768). If you swap
+  // in a different embedding model, update this column + the Embedding
+  // model below + GeminiService#embeddingDimensions together — mismatched
+  // dimensions silently truncate or fail at insert depending on pg_vector
+  // version.
+  embedding       Unsupported("vector(768)")?  // Direct embedding storage for performance
   embeddingStatus EmbeddingStatus @default(PENDING)
   embeddingError  String?
   embeddedAt      DateTime?
@@ -257,9 +262,9 @@ model Embedding {
   id      String @id @default(cuid())
   
   // Embedding metadata
-  vector     Unsupported("vector(1536)") // Vector embedding using pgvector
-  dimensions Int          @default(1536) // Vector dimensions
-  model      String       // Embedding model used (e.g., 'text-embedding-3-small')
+  vector     Unsupported("vector(768)") // Vector embedding using pgvector (Gemini text-embedding-004)
+  dimensions Int          @default(768) // Vector dimensions
+  model      String       // Embedding model used (e.g., 'text-embedding-004')
   
   // Cost tracking
   tokenCount Int?         // Tokens used for generation
