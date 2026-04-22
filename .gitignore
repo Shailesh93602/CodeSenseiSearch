@@ -52,6 +52,9 @@ coverage/
 .DS_Store?
 ._*
 .Spotlight-V100
+
+# Quality audit artifact — kept local
+quality.md
 .Trashes
 ehthumbs.db
 Thumbs.db
