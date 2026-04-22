@@ -9,6 +9,23 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../services/prisma.service';
 import * as bcrypt from 'bcryptjs';
 
+// User.preferences is stored as JSON (see prisma/schema.prisma User model).
+// Prisma's generated type for a JSON column is the broad `JsonValue` union
+// which doesn't let us dot-access our own fields directly. This helper
+// narrows it to the shape we actually put in there, and returns an empty
+// object for null / non-object payloads so callers never crash on
+// freshly-created users.
+interface UserPreferences {
+  passwordHash?: string;
+}
+
+function readUserPreferences(raw: unknown): UserPreferences {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    return raw as UserPreferences;
+  }
+  return {};
+}
+
 // Simplified types for Phase 5 MVP - will be replaced with Prisma generated types
 export enum UserRole {
   USER = 'USER',
@@ -151,7 +168,7 @@ export class AuthService {
     }
 
     // Get password hash from preferences (temporary solution)
-    const passwordHash = user.preferences?.passwordHash;
+    const passwordHash = readUserPreferences(user.preferences).passwordHash;
     if (!passwordHash) {
       throw new UnauthorizedException('Invalid email or password');
     }
@@ -276,7 +293,8 @@ export class AuthService {
     }
 
     // Get current password hash
-    const currentPasswordHash = user.preferences?.passwordHash;
+    const currentPasswordHash = readUserPreferences(user.preferences)
+      .passwordHash;
     if (!currentPasswordHash) {
       throw new UnauthorizedException('No password set for this account');
     }
