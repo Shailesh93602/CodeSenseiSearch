@@ -1,321 +1,179 @@
-# CodeSenseiSearch 🔍
+# CodeSenseiSearch
 
-> AI-powered semantic search engine for developer content
+Semantic code-search monorepo. A Next.js frontend + NestJS backend pair
+that (will) index GitHub repositories and StackOverflow Q&A, chunk each
+source file at function/class boundaries, embed every chunk with Google
+Gemini, store vectors in PostgreSQL via pgvector, and serve a
+hybrid (vector + full-text) search API.
 
-A production-ready, TypeScript-first monorepo that provides intelligent semantic search across GitHub repositories, StackOverflow Q&A, and technical documentation. Built with Next.js, NestJS, and powered by vector embeddings for superior relevance.
+> **Status — honest version.** This is a work-in-progress portfolio
+> piece. Phase 1 (landing page + search UI with mock data) and enough
+> Phase 2 plumbing to run the ingestion → chunk → embed pipeline
+> against a seed corpus are in place. What is **not** yet wired: the
+> frontend talking to the real API (still reads `mock-data.ts`), a
+> live hosted demo, and an integration test that exercises the full
+> pipeline against a real Postgres. See the [Roadmap](#roadmap).
 
-## 🚀 Quick Start
+## What actually works today
+
+| Feature | State |
+|---|---|
+| Next.js landing + search UI (against mock dataset) | ✅ Shipped |
+| NestJS backend scaffolding (auth, workers, services) | ✅ Shipped |
+| Prisma schema with pgvector column (768-dim for Gemini) | ✅ Shipped |
+| AST-aware chunker for TypeScript / JavaScript / JSX / TSX | ✅ Shipped |
+| `ContentChunkingWorker` (routes code to AST, rest to char-based) | ✅ Shipped |
+| `EmbeddingGenerationWorker` (Gemini + pgvector + retry backoff) | ✅ Shipped |
+| Auth (JWT + GitHub OAuth), JwtAuthGuard on admin routes | ✅ Shipped |
+| Global rate limiting via `@nestjs/throttler` (60/min default) | ✅ Shipped |
+| Tests: 54 unit, 7 suites passing | ✅ Shipped |
+| Frontend → real API wiring | 🚧 Next |
+| End-to-end integration test (real Postgres) | 🚧 Next |
+| Live hosted demo with bundled corpus | 🚧 Next |
+| Swagger / OpenAPI docs | 🚧 Next |
+
+## Architecture
+
+```
+  GitHub repos / StackOverflow Q&A
+            │
+            ▼
+  ┌──────────────────────────┐
+  │  Ingestion workers       │  BullMQ queues on Redis
+  │  (GitHub / SO discovery  │
+  │   + ingestion)           │
+  └──────────┬───────────────┘
+             │
+             ▼
+  ┌──────────────────────────┐
+  │  ContentChunkingWorker   │  AST-aware for .ts/.tsx/.js/.jsx
+  │                          │  char-based fallback otherwise
+  └──────────┬───────────────┘
+             │  chunks (PENDING)
+             ▼
+  ┌──────────────────────────┐
+  │  EmbeddingGeneration     │  Gemini text-embedding-004 (768d)
+  │  Worker                  │  Exponential backoff on 5xx/429
+  └──────────┬───────────────┘
+             │  embeddings
+             ▼
+  ┌──────────────────────────┐
+  │  Postgres + pgvector     │  vector(768) on content_chunks
+  └──────────┬───────────────┘
+             │
+             ▼
+  ┌──────────────────────────┐       ┌──────────────┐
+  │  Hybrid search service   │  ◄──  │  Next.js UI  │
+  │  (vector + full-text +   │       │  search page │
+  │   reranker)              │       └──────────────┘
+  └──────────────────────────┘
+```
+
+The vector column is `vector(768)` to match Gemini's
+`text-embedding-004` output. Swap models → update the schema column,
+`Embedding.dimensions` default, and `GeminiService.embeddingModel` in
+one migration.
+
+## Key design choices worth flagging
+
+- **AST-aware chunking.** Code files get walked with the TypeScript
+  compiler API; each top-level function / method / class / typed
+  callable becomes one chunk with preserved `startLine` / `endLine`.
+  Fixed-size chunks tore function bodies in half and produced
+  embeddings that didn't cluster usefully. See
+  [`code-chunker.ts`](apps/api/src/workers/code-chunker.ts).
+- **Idempotent embedding pipeline.** Re-running a generate-embeddings
+  job on the same chunk IDs is a no-op — only `PENDING`/`FAILED`
+  chunks are picked up, and the batch is flagged `IN_PROGRESS` up
+  front so concurrent workers can't race. See
+  [`embedding-generation.worker.ts`](apps/api/src/workers/embedding-generation.worker.ts).
+- **Exponential backoff on transient Gemini errors.** 500ms →
+  1000ms → 2000ms for rate-limit / timeout / 5xx responses; bail
+  immediately on 4xx shape errors (no point retrying those).
+- **Rate limiting is global.** `ThrottlerGuard` registered as
+  `APP_GUARD`; every endpoint is capped at 60 req/min per IP unless
+  it opts in to a tighter local `@Throttle`. `/auth/login` is 10/min,
+  `/auth/register` is 5/min.
+
+## Local development
 
 ### Prerequisites
-- Node.js 18+ 
+
+- Node.js 18+
 - pnpm 8+
-- Docker and Docker Compose
+- Docker + Docker Compose
+- A Google Gemini API key (free tier is plenty for local dev) — https://aistudio.google.com/app/apikey
 
-### Local Development Setup
-
-1. **Clone and install dependencies**
-   ```bash
-   git clone https://github.com/Shailesh93602/CodeSenseiSearch.git
-   cd CodeSenseiSearch
-   pnpm install
-   ```
-
-2. **Start local services**
-   ```bash
-   # Start PostgreSQL + Redis + pgAdmin
-   docker-compose up -d
-   
-   # Or start with admin tools
-   docker-compose --profile admin up -d
-   ```
-
-3. **Set up environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys
-   ```
-
-4. **Run database migrations**
-   ```bash
-   pnpm db:migrate
-   ```
-
-5. **Start all development servers**
-   ```bash
-   pnpm dev
-   ```
-
-6. **Access the application**
-   - Frontend: http://localhost:3000
-   - API: http://localhost:3001/api
-   - Health Check: http://localhost:3001/api/health
-   - pgAdmin: http://localhost:5050 (admin@codesenseisearch.com / devpassword)
-
-## 🏗️ Architecture
-
-### Monorepo Structure
-```
-CodeSenseiSearch/
-├── apps/
-│   ├── web/                 # Next.js frontend (App Router + Tailwind)
-│   └── api/                 # NestJS backend (REST + GraphQL)
-├── packages/
-│   ├── types/               # Shared TypeScript types
-│   └── utils/               # Shared utilities
-├── todos/                   # Phase-based development tracking
-├── scripts/                 # Database init and utility scripts
-└── docker-compose.yml       # Local development environment
-```
-
-### Technology Stack
-
-**Frontend**
-- **Framework**: Next.js 14+ (App Router)
-- **UI**: React 18, Tailwind CSS, shadcn/ui
-- **Code Highlighting**: Monaco Editor / Prism.js
-- **State Management**: React Query, Zustand
-
-**Backend**
-- **Framework**: NestJS (TypeScript)
-- **Database**: PostgreSQL 15+ with pgvector extension
-- **ORM**: Prisma (with vector support)
-- **Cache**: Redis 7+
-- **Queue**: BullMQ (for async jobs)
-
-**AI & Search**
-- **Embeddings**: OpenAI text-embedding-3-small/large
-- **Vector DB**: pgvector (PostgreSQL extension)
-- **Search Strategy**: Hybrid (BM25 + Vector Similarity + LLM Reranking)
-
-## 🎯 Current Status: Phase 1 Complete ✅
-
-**Phase 0 Deliverables** (Production-ready foundation):
-- ✅ Monorepo setup with pnpm workspaces
-- ✅ Next.js frontend with TypeScript + Tailwind
-- ✅ NestJS backend with health checks
-- ✅ PostgreSQL + pgvector + Redis via Docker
-- ✅ Prisma ORM with vector schema
-- ✅ Shared TypeScript packages
-- ✅ ESLint + Prettier + CI/CD pipeline
-- ✅ Comprehensive documentation
-
-**Phase 1 Deliverables** (Landing page + Search interface with mock data):
-- ✅ Modern landing page with hero section, features showcase, and call-to-action
-- ✅ Comprehensive search interface with real-time suggestions and filtering
-- ✅ Mock data system with 50+ realistic code examples across 8+ languages
-- ✅ Syntax highlighting with Prism.js for code previews
-- ✅ Mobile-first responsive design with touch-friendly interactions
-- ✅ Advanced filtering by source, language, date range, and sort options
-- ✅ Mobile filter drawer with Sheet component for optimal mobile UX
-- ✅ Production builds and comprehensive testing completed
-
-**Next**: Phase 2 - Content ingestion pipeline for GitHub repos and StackOverflow data
-
-## ✨ Current Features (Phase 1)
-
-### 🏠 Landing Page
-- **Hero Section**: Compelling introduction with gradient backgrounds and call-to-action
-- **Features Showcase**: Highlighting AI-powered search, multi-source content, and code intelligence
-- **Responsive Design**: Mobile-first approach with optimized layouts for all screen sizes
-- **Modern UI**: Built with Tailwind CSS and shadcn/ui components
-
-### 🔍 Search Interface
-- **Real-time Search**: Instant search with query suggestions and autocomplete
-- **Advanced Filters**: Filter by content source (GitHub, StackOverflow, Docs), programming language, date range, and relevance
-- **Mock Data**: 50+ realistic code examples across JavaScript, Python, React, Node.js, Rust, Go, Java, and TypeScript
-- **Syntax Highlighting**: Full syntax highlighting with Prism.js for 20+ programming languages
-- **Responsive Filters**: Desktop sidebar filters + mobile drawer with filter summaries
-
-### 📱 Mobile Experience
-- **Mobile Filter Drawer**: Sliding sheet component for easy filter access on mobile
-- **Touch Interactions**: Optimized for touch devices with appropriate tap targets
-- **Filter Indicators**: Visual badges showing active filters on mobile
-- **Responsive Navigation**: Adaptive header and navigation for different screen sizes
-
-## 📋 Available Scripts
-
-### Workspace Root
-```bash
-pnpm dev                    # Start all services (frontend + backend)
-pnpm build                  # Build all packages and apps
-pnpm test                   # Run all tests
-pnpm lint                   # Lint all packages
-pnpm type-check            # TypeScript checks across workspace
-pnpm format                # Format code with Prettier
-```
-
-### Database Operations
-```bash
-pnpm db:migrate            # Run Prisma migrations
-pnpm db:studio             # Open Prisma Studio
-pnpm --filter api db:generate  # Generate Prisma client
-```
-
-### Development Tools
-```bash
-docker-compose up -d                    # Start local services
-docker-compose --profile admin up -d   # Start with admin tools
-docker-compose logs -f postgres         # View database logs
-docker-compose down -v                  # Stop and remove volumes
-```
-
-## 🗂️ Project Management
-
-### Phase-Based Development
-This project follows an 8-phase delivery approach with production-ready iterations:
-
-1. **Phase 0**: ✅ Project setup & scaffolding  
-2. **Phase 1**: ✅ Landing page + search UI with mock data  
-3. **Phase 2**: 🚧 Content ingestion pipeline  
-4. **Phase 3**: ⏳ Vector embeddings + search  
-5. **Phase 4**: ⏳ Hybrid search + reranking  
-6. **Phase 5**: ⏳ Authentication + personalization  
-7. **Phase 6**: ⏳ Production deployment  
-8. **Phase 7**: ⏳ SEO content + documentation  
-
-### Todo Management
-- **Master Tracker**: `todos/master-tracker.md` - Overall progress
-- **Phase Files**: `todos/phase-X.md` - Detailed task breakdowns
-- **Templates**: `todos/templates/` - Consistent structure
+### One-time setup
 
 ```bash
-# Check current phase progress
-cat todos/phase-1.md
+git clone https://github.com/Shailesh93602/CodeSenseiSearch.git
+cd CodeSenseiSearch
+pnpm install
 
-# View overall project status  
-cat todos/master-tracker.md
+# Start Postgres + Redis + pgAdmin
+docker-compose up -d
 
-# Update todos after completing work
-git add todos/ && git commit -m "Update todos: Phase X progress"
+# Backend env
+cp apps/api/.env.example apps/api/.env
+# Fill in GEMINI_API_KEY, JWT_SECRET (openssl rand -hex 32), DATABASE_URL
+
+# Apply DB schema (pgvector extension + tables + vector dims)
+pnpm --filter @codesenseisearch/api db:migrate
 ```
 
-## 🔧 Configuration
-
-### Environment Variables
-Key configuration options (see `.env.example`):
+### Run everything
 
 ```bash
-# Database
-DATABASE_URL="postgresql://user:pass@localhost:5432/codesenseisearch"
-REDIS_URL="redis://localhost:6379"
-
-# API
-API_PORT=3001
-FRONTEND_URL="http://localhost:3000"
-
-# External APIs (add when implementing)
-OPENAI_API_KEY=""
-GITHUB_TOKEN=""
+pnpm dev
 ```
 
-### Docker Services
-- **PostgreSQL**: Port 5432 (with pgvector extension)
-- **Redis**: Port 6379 (caching + job queues)
-- **pgAdmin**: Port 5050 (database admin, optional)
-- **Redis Commander**: Port 8081 (Redis admin, optional)
+Opens:
 
-## 🧪 Testing
+- Frontend — http://localhost:3000
+- API — http://localhost:3001/api
+- pgAdmin (if `--profile admin` was used) — http://localhost:5050
 
-### Test Strategy
-- **Unit Tests**: Jest for business logic
-- **Integration Tests**: Supertest for API endpoints  
-- **E2E Tests**: Playwright for user flows (Phase 1+)
-- **Database Tests**: Test database with migrations
+### Tests
 
 ```bash
-# Run all tests
-pnpm test
-
-# Run tests with coverage
-pnpm test:cov
-
-# Run specific app tests
-pnpm --filter api test
-pnpm --filter web test
+pnpm --filter @codesenseisearch/api test
 ```
 
-### CI/CD Pipeline
-GitHub Actions automatically runs:
-- ✅ Linting and formatting checks
-- ✅ TypeScript type checking
-- ✅ Build verification (all packages)
-- ✅ Test suite with PostgreSQL + Redis
-- ✅ Security audit
-- ✅ Artifact generation
+Currently 54 tests across 7 suites (AST chunker, embedding worker,
+search services, controllers).
 
-## 🚀 Deployment
+## Roadmap
 
-### Development
-- **Frontend**: `pnpm dev` (localhost:3000)
-- **Backend**: `pnpm --filter api dev` (localhost:3001)
-- **Database**: Docker Compose PostgreSQL + Redis
+Active Phase 2 items, in the order they unblock each other:
 
-### Production (Phase 6)
-- **Frontend**: Vercel (planned)
-- **Backend**: Railway/Render (planned)
-- **Database**: Managed PostgreSQL with pgvector
-- **Cache**: Managed Redis instance
+1. **End-to-end integration test.** Spin up Postgres in a testcontainer,
+   seed a tiny source corpus, run ingest → chunk → embed → search, assert
+   the top result is the expected file range. Real DB, real Gemini.
+2. **Frontend → real API.** Replace `apps/web/src/lib/mock-data.ts` with
+   `api-client.ts` calls. Loading + empty + error states already exist
+   in the UI.
+3. **Bundled demo corpus.** Pre-embed a small popular repo and commit
+   the resulting SQL dump. `pnpm demo` then restores the dump and lands
+   on a working `/search` page without any API key.
+4. **Hosted demo.** Vercel for the frontend, Railway or Fly.io for the
+   API, Neon or Supabase for Postgres + pgvector, Upstash for Redis.
+5. **Swagger / OpenAPI.** `@nestjs/swagger` + `@ApiOperation` across
+   the search + auth controllers.
+6. **Split the monolithic workers file.** `base.worker.ts` is still
+   ~1650 lines after the partial extract. Split the remaining 5
+   GitHub/SO workers into individual files for testability and easier
+   diff review.
 
-## 📚 API Documentation
+## What this project is not
 
-### Health Check
-```bash
-GET /api/health
-```
-```json
-{
-  "status": "ok",
-  "timestamp": "2025-11-02T12:00:00.000Z",
-  "service": "CodeSenseiSearch API",
-  "version": "0.1.0"
-}
-```
+- Not "production-ready" — it's an in-progress portfolio exploration.
+  The backend pipeline is wired but not deployed, and the frontend is
+  still reading mock data.
+- Not a drop-in for GitHub Code Search. Different goals, different
+  index strategy, and no scale story for >10k repos.
+- Not multi-tenant yet. Single-user flows only.
 
-More endpoints will be documented as they're implemented in subsequent phases.
+## License
 
-## 🤝 Contributing
-
-### Development Workflow
-1. **Pick a Phase**: Check `todos/master-tracker.md` for current phase
-2. **Create Branch**: `git checkout -b feature/phase-X-feature-name`
-3. **Follow Todos**: Use `todos/phase-X.md` for task guidance
-4. **Update Progress**: Mark todos complete as you work
-5. **Submit PR**: All CI checks must pass
-
-### Quality Standards
-- **TypeScript**: Strict mode, proper typing
-- **Testing**: >80% coverage for new features
-- **Documentation**: Update README and API docs
-- **Performance**: Meet latency targets (<300ms search)
-
-## 📖 Learning Resources
-
-### Key Technologies
-- [Next.js App Router](https://nextjs.org/docs/app)
-- [NestJS Documentation](https://docs.nestjs.com/)
-- [Prisma with PostgreSQL](https://www.prisma.io/docs/)
-- [pgvector Extension](https://github.com/pgvector/pgvector)
-- [OpenAI Embeddings](https://platform.openai.com/docs/guides/embeddings)
-
-### Architecture Decisions
-- **Monorepo**: Shared code, unified tooling, easier development
-- **pgvector**: Cost-effective vector storage, SQL familiarity
-- **TypeScript-first**: Better DX, fewer runtime errors
-- **Phase-based**: Deployable increments, early feedback
-
-## 📝 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-- **Issues**: GitHub Issues for bugs and feature requests
-- **Discussions**: GitHub Discussions for questions
-- **Documentation**: Check `todos/` for development guidance
-- **Health Check**: `/api/health` for service status
-
----
-
-**Built with ❤️ for developers who love intelligent search**
-
-Current Phase: **Phase 0 Complete** ✅ | Next: **Phase 1 - Landing Page + Search UI** 🚧
+MIT.
