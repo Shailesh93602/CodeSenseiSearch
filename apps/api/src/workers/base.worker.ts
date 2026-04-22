@@ -5,6 +5,7 @@ import { GitHubApiService } from '../services/github-api.service';
 import { StackOverflowApiService } from '../services/stackoverflow-api.service';
 import { PrismaService } from '../services/prisma.service';
 import { BaseWorker } from './worker.base';
+import { chunkByAst, isAstSupportedLanguage } from './code-chunker';
 
 // GitHub Discovery Worker
 @Injectable()
@@ -1331,14 +1332,31 @@ export class ContentChunkingWorker extends BaseWorker {
     startPosition: number;
     endPosition: number;
   }> {
-    // Use the same intelligent chunking logic from GitHubProcessingWorker
+    // AST-aware chunking for TypeScript / JavaScript / JSX / TSX. Emits
+    // one chunk per top-level function / method / class plus module-scope
+    // segments, so embeddings correspond to meaningful semantic units
+    // and search results can point at a real function signature rather
+    // than a fixed-size window that slices it in half.
+    if (isAstSupportedLanguage(language)) {
+      const astChunks = chunkByAst(content, language);
+      if (astChunks.length > 0) {
+        return astChunks.map((c) => ({
+          text: c.text,
+          startPosition: c.startChar,
+          endPosition: c.endChar,
+        }));
+      }
+      // Empty AST output (rare — empty source or no declarations)
+      // falls through to the generic chunker below.
+    }
+
     if (language === 'markdown') {
       return this.chunkMarkdown(content, chunkSize, overlap);
-    } else if (this.isCodeLanguage(language)) {
-      return this.chunkCode(content, chunkSize, overlap);
-    } else {
-      return this.chunkPlainText(content, chunkSize, overlap);
     }
+    if (this.isCodeLanguage(language)) {
+      return this.chunkCode(content, chunkSize, overlap);
+    }
+    return this.chunkPlainText(content, chunkSize, overlap);
   }
 
   private splitByCodeBlocks(content: string): Array<{
