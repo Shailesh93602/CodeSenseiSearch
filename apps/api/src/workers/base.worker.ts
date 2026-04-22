@@ -1,76 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Worker, Job } from 'bullmq';
+import { Injectable } from '@nestjs/common';
+import { Job } from 'bullmq';
 import { QueueService, JobType } from '../services/queue.service';
 import { GitHubApiService } from '../services/github-api.service';
 import { StackOverflowApiService } from '../services/stackoverflow-api.service';
 import { PrismaService } from '../services/prisma.service';
-
-@Injectable()
-export abstract class BaseWorker {
-  protected readonly logger = new Logger(this.constructor.name);
-  protected worker: Worker;
-
-  constructor(
-    protected queueService: QueueService,
-    protected queueName: string,
-    protected concurrency: number = 5,
-  ) {
-    this.initializeWorker();
-  }
-
-  private initializeWorker() {
-    this.worker = new Worker(
-      this.queueName,
-      async (job: Job) => {
-        this.logger.log(`Processing job ${job.id} of type ${job.name}`);
-        try {
-          const result = await this.processJob(job);
-          this.logger.log(`Completed job ${job.id} successfully`);
-          return result;
-        } catch (error) {
-          this.logger.error(`Failed to process job ${job.id}:`, error);
-          throw error;
-        }
-      },
-      {
-        connection: this.queueService.getRedisConnection(),
-        concurrency: this.concurrency,
-      },
-    );
-
-    this.worker.on('completed', (job) => {
-      this.logger.log(`Job ${job.id} completed`);
-    });
-
-    this.worker.on('failed', (job, err) => {
-      this.logger.error(`Job ${job?.id} failed:`, err);
-    });
-
-    this.worker.on('stalled', (jobId) => {
-      this.logger.warn(`Job ${jobId} stalled`);
-    });
-
-    this.worker.on('error', (err) => {
-      this.logger.error('Worker error:', err);
-    });
-
-    // Register worker with queue service
-    this.queueService.registerWorker(this.queueName, this.worker);
-    this.logger.log(`Worker initialized for queue: ${this.queueName}`);
-  }
-
-  protected abstract processJob(job: Job): Promise<any>;
-
-  /**
-   * Gracefully close the worker
-   */
-  async close(): Promise<void> {
-    if (this.worker) {
-      await this.worker.close();
-      this.logger.log(`Worker ${this.queueName} closed successfully`);
-    }
-  }
-}
+import { BaseWorker } from './worker.base';
 
 // GitHub Discovery Worker
 @Injectable()
@@ -1709,43 +1643,9 @@ export class ContentChunkingWorker extends BaseWorker {
   }
 }
 
-// Embedding Generation Worker
-@Injectable()
-export class EmbeddingGenerationWorker extends BaseWorker {
-  constructor(
-    queueService: QueueService,
-    private readonly prismaService: PrismaService,
-  ) {
-    super(queueService, 'embedding-generation', 3); // Limited by OpenAI API
-  }
-
-  protected async processJob(job: Job): Promise<any> {
-    const { name, data } = job;
-
-    switch (name as JobType) {
-      case JobType.GENERATE_EMBEDDINGS:
-        return this.generateEmbeddings(data);
-      default:
-        throw new Error(`Unknown job type: ${name}`);
-    }
-  }
-
-  private async generateEmbeddings(data: any): Promise<any> {
-    this.logger.log(
-      `Generating embeddings for ${data.contentChunkIds.length} chunks`,
-    );
-
-    // TODO: Implement embedding generation with OpenAI and Vector services
-    // This will be completed when we have sample content chunks
-    // 1. Load content chunks
-    // 2. Call OpenAI API in batches
-    // 3. Store embeddings in database
-    // 4. Update chunk status
-
-    return Promise.resolve({
-      processedChunks: data.contentChunkIds.length,
-      embeddingsGenerated: 0,
-      message: 'Embedding generation worker - ready for Phase 3 implementation',
-    });
-  }
-}
+// BaseWorker + EmbeddingGenerationWorker were extracted into their own
+// files so specs can import them without pulling in Octokit/Google SDKs
+// via the sibling GitHub/StackOverflow workers. Re-export here keeps
+// existing imports (workers.module.ts) working.
+export { BaseWorker } from './worker.base';
+export { EmbeddingGenerationWorker } from './embedding-generation.worker';
