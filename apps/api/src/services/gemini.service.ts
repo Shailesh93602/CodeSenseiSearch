@@ -20,7 +20,12 @@ export interface EmbeddingBatchResult {
 export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
   private readonly genAI: GoogleGenerativeAI;
-  private readonly embeddingModel = 'text-embedding-004';
+  // `text-embedding-004` was retired by Google. `gemini-embedding-001`
+  // is the GA replacement. It defaults to 3072 dims, but MRL truncation
+  // lets callers request 768 via outputDimensionality (see the embed
+  // call sites below). The DB schema stores vector(768), so the embed
+  // call MUST pass outputDimensionality: 768.
+  private readonly embeddingModel = 'gemini-embedding-001';
   private readonly textModel = 'gemini-1.5-flash';
   private readonly maxTokensPerChunk = 2048; // Gemini embedding model limit
   private embeddingModelInstance: any;
@@ -69,6 +74,12 @@ export class GeminiService {
         this.embeddingModelInstance.embedContent({
           content: { parts: [{ text: truncatedContent }] },
           taskType: 'RETRIEVAL_DOCUMENT', // Optimized for search/retrieval
+          // gemini-embedding-001 emits 3072 dims by default; MRL
+          // truncation to 768 matches our pgvector column width and
+          // keeps storage/search cost low. Changing this value requires
+          // updating the schema.prisma vector column AND re-embedding
+          // the entire corpus.
+          outputDimensionality: 768,
         }),
     );
 
@@ -117,6 +128,7 @@ export class GeminiService {
           const result = await this.embeddingModelInstance.embedContent({
             content: { parts: [{ text: content }] },
             taskType: 'RETRIEVAL_DOCUMENT',
+            outputDimensionality: 768,
           });
 
           const tokenCount = this.estimateTokenCount(content);
@@ -177,6 +189,7 @@ export class GeminiService {
         this.embeddingModelInstance.embedContent({
           content: { parts: [{ text: query }] },
           taskType: 'RETRIEVAL_QUERY',
+          outputDimensionality: 768,
         }),
     );
 
