@@ -10,11 +10,19 @@ export class GitHubStrategy extends PassportStrategy(Strategy, 'github') {
     private readonly configService: ConfigService,
     private readonly authService: AuthService,
   ) {
+    // passport-oauth2 throws synchronously if clientID is missing — even
+    // if the /auth/github routes are never hit at runtime. When the
+    // env isn't configured (the deployed portfolio build doesn't demo
+    // OAuth), pass a placeholder so DI resolution succeeds; actual
+    // OAuth calls will still fail with a proper 401 when someone tries.
     super({
-      clientID: configService.get('GITHUB_CLIENT_ID') ?? '',
-      clientSecret: configService.get('GITHUB_CLIENT_SECRET') ?? '',
+      clientID:
+        configService.get<string>('GITHUB_CLIENT_ID') ?? 'GITHUB_OAUTH_DISABLED',
+      clientSecret:
+        configService.get<string>('GITHUB_CLIENT_SECRET') ??
+        'GITHUB_OAUTH_DISABLED',
       callbackURL:
-        configService.get('GITHUB_CALLBACK_URL') ??
+        configService.get<string>('GITHUB_CALLBACK_URL') ??
         'http://localhost:3001/auth/github/callback',
       scope: ['user:email'],
     });

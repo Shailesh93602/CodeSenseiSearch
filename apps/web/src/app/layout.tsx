@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SEOMetadata, pageConfigs } from "@/lib/seo";
-import { WebVitalsReporter } from "@/components/performance/WebVitalsReporter";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -64,9 +63,6 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#000000" />
         
-        {/* Apple Touch Icons */}
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        
         {/* Preconnect to external domains */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -74,7 +70,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <WebVitalsReporter />
         {children}
       </body>
     </html>

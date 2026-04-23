@@ -1,0 +1,76 @@
+{
+    "name": "CodeSenseiSearch",
+    "short_name": "CodeSensei",
+    "description": "AI-powered semantic search for developer content",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#000000",
+    "orientation": "portrait-primary",
+    "categories": [
+        "developer",
+        "productivity",
+        "utilities"
+    ],
+    "lang": "en",
+    "dir": "ltr",
+    "icons": [
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "/screenshot-desktop.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide",
+            "label": "CodeSenseiSearch desktop interface"
+        },
+        {
+            "src": "/screenshot-mobile.png",
+            "sizes": "360x640",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "CodeSenseiSearch mobile interface"
+        }
+    ],
+    "prefer_related_applications": false,
+    "shortcuts": [
+        {
+            "name": "Search Code",
+            "short_name": "Search",
+            "description": "Search for code snippets and documentation",
+            "url": "/search",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
+        },
+        {
+            "name": "Documentation",
+            "short_name": "Docs",
+            "description": "Browse API documentation",
+            "url": "/docs",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
+        }
+    ]
+}

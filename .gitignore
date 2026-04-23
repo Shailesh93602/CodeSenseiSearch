@@ -112,7 +112,10 @@ out
 
 # Gatsby files
 .cache/
-public
+# Gatsby emits to `public/` — it's a generator output directory.
+# This intentionally does NOT ignore our Next.js app's public/ dir,
+# which is a hand-maintained static asset folder, not a build target.
+/public
 
 # Storybook build outputs
 .out
