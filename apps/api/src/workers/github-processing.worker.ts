@@ -310,8 +310,10 @@ export class GitHubProcessingWorker extends BaseWorker {
         endPosition: currentPosition + chunkText.length,
       });
 
-      currentPosition += chunkText.length - overlapSize;
-      if (currentPosition <= 0) break; // Prevent infinite loop
+      // Always advance by at least one char so we can't loop forever
+      // when chunkText.length happens to equal overlapSize.
+      const advance = Math.max(1, chunkText.length - overlapSize);
+      currentPosition += advance;
     }
 
     return chunks;

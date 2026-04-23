@@ -503,8 +503,12 @@ export class ContentChunkingWorker extends BaseWorker {
         endPosition: currentPosition + chunkText.length,
       });
 
-      currentPosition += chunkText.length - overlap;
-      if (currentPosition <= 0) break;
+      // Advance by chunk length minus overlap, but always by at least
+      // one character so we can't loop forever when chunkText.length
+      // happens to equal overlap (which used to hang the worker on
+      // any plain-text content where the final tail was overlap-sized).
+      const advance = Math.max(1, chunkText.length - overlap);
+      currentPosition += advance;
     }
 
     return chunks.filter((chunk) => chunk.text.length > 0);
