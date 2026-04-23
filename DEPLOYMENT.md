@@ -6,7 +6,7 @@ works." Total time: ~30 minutes if you already have the accounts.
 
 > Targets the cheapest production-grade stack:
 > - **Vercel** for the Next.js frontend (free tier)
-> - **Railway** for the NestJS API (free $5/mo credit)
+> - **Vercel** for the NestJS API (free Hobby tier — same project owner uses for KhataGO + EduScale)
 > - **Neon** for Postgres + pgvector (free 0.5 GB tier)
 > - **Upstash** for Redis (free 10K commands/day)
 > - **Google AI Studio** for Gemini (free 1500 req/min)
@@ -116,7 +116,7 @@ git push
    RESP), TLS: enabled
 3. From the database details page copy the **REDIS URL** — looks like
    `rediss://default:PASSWORD@HOST:6379`. Parse it into the three env
-   vars Railway expects:
+   vars Vercel expects:
    ```
    REDIS_HOST=alive-goblin-105184.upstash.io   # the host
    REDIS_PORT=6379
@@ -128,50 +128,52 @@ git push
 
 ---
 
-## Step 4 — Deploy the API to Railway (10 min)
+## Step 4 — Deploy the API to Vercel (10 min)
 
-> **Why not Vercel for the API?** Vercel runs NestJS as serverless
-> functions. That works for the HTTP request/response surface (search,
-> auth, admin endpoints) but **breaks the BullMQ ingestion pipeline**:
-> BullMQ workers need a long-running process with a persistent Redis
-> connection to listen for jobs. Serverless functions die between
-> requests, so workers never run, and the entire ingest → chunk →
-> embed pipeline is dead code. Vercel cron functions can't substitute
-> because Gemini embedding for a typical repo file routinely takes
-> >10s, hitting the Hobby-plan timeout. Use Railway (or Fly.io) for
-> the API; use Vercel only for the Next.js frontend in Step 5.
+The API runs on Vercel as a serverless function. The same pattern the
+owner uses for KhataGO + EduScale Backend. The Vercel handler at
+[apps/api/api/index.ts](apps/api/api/index.ts) bootstraps the NestJS
+app once per cold start, caches it across warm invocations, and feeds
+Vercel's request/response objects through `@vendia/serverless-express`
+to the Express adapter Nest uses internally.
 
+> **Trade-off:** BullMQ workers don't auto-run on Vercel — they need a
+> long-running process to listen on Redis queues. Search / auth /
+> admin HTTP routes work fine because they're synchronous. The
+> codebase auto-detects the `VERCEL` env (set by Vercel for every
+> function) and skips Worker initialization in `worker.base.ts:31`.
+> Ingestion is documented in Step 8 — run it once locally against the
+> live DB, or wire a Vercel cron that POSTs to a manual-trigger
+> endpoint.
 
-1. Sign up at https://railway.app (GitHub auth)
-2. New Project → "Deploy from GitHub repo" → pick `CodeSenseiSearch`
-3. Railway will auto-detect the Dockerfile but you need to point it at
-   the right one. In the service settings:
-   - **Root Directory:** leave blank (the Dockerfile builds from repo root)
-   - **Dockerfile Path:** `apps/api/Dockerfile`
-   - **Watch Paths:** `apps/api/**`
-4. Add environment variables (Settings → Variables → Raw Editor):
+1. https://vercel.com → Add New Project → import `CodeSenseiSearch`
+2. **Configure project:**
+   - Framework Preset: **Other** (NestJS preset would auto-pick wrong settings; the `vercel.json` in `apps/api/` overrides the build)
+   - **Root Directory:** `apps/api`
+   - Build Command: leave blank (uses `vercel.json`'s `buildCommand`)
+   - Install Command: `cd ../.. && pnpm install --no-frozen-lockfile`
+   - Output Directory: leave blank
+3. Environment Variables (Settings → Environment Variables):
    ```env
    NODE_ENV=production
-   API_PORT=3001
    DATABASE_URL=postgresql://postgres.<REF>:<PWD>@aws-1-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true
    DIRECT_URL=postgresql://postgres.<REF>:<PWD>@aws-1-us-east-1.pooler.supabase.com:5432/postgres
-   REDIS_HOST=alive-goblin-105184.upstash.io   # the host part of your Upstash URL
+   REDIS_HOST=alive-goblin-105184.upstash.io
    REDIS_PORT=6379
-   REDIS_PASSWORD=...                            # the part after default: in your Upstash URL
+   REDIS_PASSWORD=...                            # part after default: in your Upstash URL
    JWT_SECRET=...                                # openssl rand -hex 32
    GEMINI_API_KEY=...                            # from aistudio.google.com/app/apikey
-   FRONTEND_URL=https://codesenseisearch.vercel.app   # update after step 5
+   FRONTEND_URL=https://YOUR-WEB-VERCEL-URL      # update after Step 5; placeholder is fine for now
    LOG_LEVEL=info
    ```
-
-5. Once deployed, Railway gives you a public URL like
-   `https://codesenseisearch-api.up.railway.app`. Save it.
-6. Verify the deploy:
+4. Click Deploy. Vercel gives you a URL like
+   `https://code-sensei-search-api.vercel.app`. Save it.
+5. Verify:
    ```bash
-   curl https://YOUR-RAILWAY-URL/api/health
+   curl https://YOUR-API-VERCEL-URL/api/health
    # Expected: { "status": "ok", "components": { "database": { "status": "up", ... } } }
    ```
-7. Apply migrations against the live Supabase DB. From your laptop:
+6. Apply migrations against the live Supabase DB. From your laptop:
    ```bash
    cd ~/Desktop/Coding/CodeSenseiSearch/apps/api
    DATABASE_URL='postgresql://...:6543/postgres?pgbouncer=true' \
@@ -195,9 +197,11 @@ git push
    NEXT_PUBLIC_API_URL=https://YOUR-RAILWAY-URL/api
    ```
 5. Deploy. Vercel gives you a `https://codesensei-search.vercel.app` URL.
-6. **Go back to Railway** and update the API's `FRONTEND_URL` env var to
-   the Vercel URL — otherwise CORS will block the frontend's API calls.
-7. Redeploy the API service so the new env takes effect.
+6. **Go back to the API's Vercel project** and update its `FRONTEND_URL`
+   env var to the web Vercel URL — otherwise CORS will block the
+   frontend's API calls.
+7. Redeploy the API project so the new env takes effect (Deployments →
+   ⋯ menu → Redeploy).
 
 ---
 
@@ -296,7 +300,9 @@ Option B — write a one-shot seed script (~1 hr work, on the TODO as B2):
 - Commit the resulting SQL dump under
   `apps/api/prisma/seed/demo-corpus.sql.gz`
 - Add `pnpm demo` script that restores it locally
-- For the deployed instance, run the seed once via `railway run`
+- For the deployed instance, set `DATABASE_URL` + `DIRECT_URL` to the
+  Supabase connection strings from your laptop and run the seed
+  script there — it'll write directly to the live DB.
 
 Both are documented in [TODO.md](TODO.md) as B2.
 
@@ -319,7 +325,7 @@ version" callout up top frames that — they know it's WIP.
 ## Rollback / cleanup
 
 If anything goes wrong:
-- **Railway:** Service → Settings → Danger Zone → Remove
+- **Vercel (api or web):** Project → Settings → Advanced → Delete
 - **Vercel:** Project → Settings → Advanced → Delete Project
 - **Neon:** Project → Settings → Delete Project
 - **Upstash:** Database → Danger Zone → Delete Database
@@ -336,7 +342,7 @@ If anything goes wrong:
 | 1. Repo public | 1 min |
 | 2. Neon Postgres | 5 min |
 | 3. Upstash Redis | 3 min |
-| 4. Railway API | 10 min |
+| 4. Vercel API | 10 min |
 | 5. Vercel web | 5 min |
 | 6. Sanity-check live | 2 min |
 | 7. Portfolio update | 3 min |

@@ -3,7 +3,7 @@
 import './instrument';
 
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger as PinoLogger } from 'nestjs-pino';
 import helmet from 'helmet';
@@ -11,28 +11,18 @@ import { AppModule } from './app.module';
 import { loadEnv } from './config/env';
 import { SentryExceptionFilter } from './sentry-exception.filter';
 
-async function bootstrap() {
-  // Validate env BEFORE Nest constructs the module graph. If a required
-  // var is missing or malformed we exit non-zero with the full list of
-  // problems printed — much friendlier than discovering the gap at the
-  // first failing request.
-  try {
-    loadEnv();
-  } catch {
-    process.exit(1);
-  }
+/**
+ * Build a fully-configured Nest app without listening on a port.
+ * Reused by both `main.ts` (Railway / docker / local — calls listen)
+ * and `api/index.ts` (Vercel serverless wrapper — caches the app
+ * instance across invocations and lets serverless-express drive it).
+ */
+export async function createApp(): Promise<INestApplication> {
+  loadEnv();
 
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
-  // Wire pino as the Nest logger — every Logger.log() call now emits
-  // a structured JSON record (or coloured pretty-print in dev).
   app.useLogger(app.get(PinoLogger));
 
-  // Helmet — sane default security headers (X-Content-Type-Options,
-  // Referrer-Policy, Strict-Transport-Security, X-DNS-Prefetch-Control,
-  // etc.). The default Content-Security-Policy is loosened slightly so
-  // Swagger's UI keeps working on /api/docs (it loads its own bundles
-  // and inline scripts); production-with-no-Swagger gets the strict
-  // default automatically because the docs route isn't mounted.
   app.use(
     helmet({
       contentSecurityPolicy:
@@ -51,13 +41,11 @@ async function bootstrap() {
     }),
   );
 
-  // Enable CORS for frontend communication
   app.enableCors({
     origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
     credentials: true,
   });
 
-  // Enable global validation
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -66,20 +54,12 @@ async function bootstrap() {
     }),
   );
 
-  // Set global API prefix
   app.setGlobalPrefix('api');
 
-  // Sentry global exception capture. The filter only ships to Sentry
-  // when SENTRY_DSN was set at boot; otherwise instrument.ts skipped
-  // Sentry.init() and the filter's captureException calls are no-ops.
   if (process.env.SENTRY_DSN) {
     app.useGlobalFilters(new SentryExceptionFilter());
   }
 
-  // OpenAPI / Swagger documentation. Mounted at /api/docs and the raw
-  // OpenAPI JSON at /api/docs-json. Skipped in production unless the
-  // SWAGGER_ENABLED env is truthy — keeps the docs out of public-prod
-  // by default so endpoint structure isn't a free reconnaissance map.
   const swaggerEnabled =
     process.env.NODE_ENV !== 'production' ||
     process.env.SWAGGER_ENABLED === 'true';
@@ -102,17 +82,30 @@ async function bootstrap() {
     SwaggerModule.setup('api/docs', app, document);
   }
 
-  const port = process.env.API_PORT ?? 3001;
-  await app.listen(port);
-
-  console.log(
-    `🚀 CodeSenseiSearch API is running on: http://localhost:${port}/api`,
-  );
-  if (swaggerEnabled) {
-    console.log(`📖 OpenAPI docs at:           http://localhost:${port}/api/docs`);
-  }
-  console.log(
-    `📊 Health check available at: http://localhost:${port}/api/health`,
-  );
+  return app;
 }
-void bootstrap();
+
+async function bootstrap() {
+  try {
+    const app = await createApp();
+    const port = process.env.API_PORT ?? 3001;
+    await app.listen(port);
+
+    console.log(
+      `🚀 CodeSenseiSearch API is running on: http://localhost:${port}/api`,
+    );
+    console.log(
+      `📊 Health check available at: http://localhost:${port}/api/health`,
+    );
+  } catch (err) {
+    // loadEnv() already printed the offence list
+    console.error(err);
+    process.exit(1);
+  }
+}
+
+// Skip listen() when running on Vercel — the serverless handler in
+// api/index.ts boots the same app and feeds it requests directly.
+if (!process.env.VERCEL) {
+  void bootstrap();
+}

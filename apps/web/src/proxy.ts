@@ -1,7 +1,12 @@
+// Renamed from middleware.ts → proxy.ts in Next.js 16.1. The function
+// export was also renamed (middleware → proxy). The matcher config
+// stays the same.
+// See https://nextjs.org/docs/messages/middleware-to-proxy
+
 import { NextRequest, NextResponse } from 'next/server';
 import { PerformanceOptimizer } from './lib/performance';
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const startTime = Date.now();
   const url = request.nextUrl.clone();
   const pathname = url.pathname;

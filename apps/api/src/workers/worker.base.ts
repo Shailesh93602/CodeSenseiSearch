@@ -24,6 +24,20 @@ export abstract class BaseWorker {
     protected queueName: string,
     protected concurrency: number = 5,
   ) {
+    // Skip BullMQ Worker construction in serverless environments
+    // (Vercel functions). Workers need a long-running process to
+    // listen on Redis queues; Vercel functions die between requests
+    // so the listener is wasted and the connection just thrashes.
+    // The worker class instance still exists so DI works — its
+    // methods can still be invoked directly (e.g. by a Vercel cron
+    // route or a one-shot script), they just won't auto-process
+    // queued jobs.
+    if (process.env.VERCEL || process.env.DISABLE_WORKERS === 'true') {
+      this.logger.log(
+        `Worker ${queueName} skipped (serverless mode — call processJob directly to use)`,
+      );
+      return;
+    }
     this.initializeWorker();
   }
 

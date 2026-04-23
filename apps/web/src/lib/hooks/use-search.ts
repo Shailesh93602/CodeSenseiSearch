@@ -54,11 +54,15 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       const timer = setTimeout(() => {
         setDebouncedQuery(query);
       }, debounceMs);
-      
+
       return () => clearTimeout(timer);
-    } else {
-      setDebouncedQuery(query);
     }
+    // Synchronous fallback when debounceMs is 0 — the intent IS to
+    // mirror `query` into `debouncedQuery` immediately. Defer to a
+    // microtask so React doesn't see this as a cascading-render
+    // (react-hooks/set-state-in-effect).
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional pass-through; queueMicrotask defers off the render path
+    queueMicrotask(() => setDebouncedQuery(query));
   }, [query, debounceMs]);
 
   const performSearch = useCallback(async (
@@ -144,10 +148,14 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     return search();
   }, [search]);
 
-  // Auto-search when debounced query changes
+  // Auto-search when debounced query changes. search() does setState
+  // internally; we defer it off the current render with queueMicrotask
+  // so React doesn't see it as a same-render cascade.
   useEffect(() => {
     if (autoSearch && debouncedQuery.trim()) {
-      search();
+      queueMicrotask(() => {
+        void search();
+      });
     }
   }, [debouncedQuery, filters, autoSearch, search]);
 
@@ -259,8 +267,12 @@ export function useSearchStats(): UseSearchStatsReturn {
     return fetchStats();
   }, [fetchStats]);
 
+  // Initial fetch on mount. Defer off the render path so the initial
+  // setState fires after React finishes the current commit.
   useEffect(() => {
-    fetchStats();
+    queueMicrotask(() => {
+      void fetchStats();
+    });
   }, [fetchStats]);
 
   return {
