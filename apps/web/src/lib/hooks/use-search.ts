@@ -200,9 +200,9 @@ export function useSuggestions(): UseSuggestionsReturn {
     setError(null);
 
     try {
-      const response = await apiClient.getQuickSearch(query);
+      const response = await apiClient.getSearchSuggestions(query);
       if (response.success) {
-        setSuggestions(response.data.suggestions);
+        setSuggestions(response.data.suggestions ?? []);
       } else {
         throw new Error('Failed to get suggestions');
       }

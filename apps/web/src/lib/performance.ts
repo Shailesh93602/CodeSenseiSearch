@@ -50,6 +50,19 @@ export class PerformanceOptimizer {
    * Generate CSP header for security and performance
    */
   static getCSPHeader(isDevelopment = false): string {
+    // Allow the configured API origin. We read NEXT_PUBLIC_API_URL at
+    // runtime on the edge and extract just the origin for CSP — the
+    // path segment (e.g. /api) is not part of connect-src grammar.
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? '';
+    let apiOrigin = '';
+    try {
+      if (apiUrl) apiOrigin = new URL(apiUrl).origin;
+    } catch {
+      apiOrigin = '';
+    }
+
+    const connectSrc = ["'self'", apiOrigin].filter(Boolean).join(' ');
+
     const directives = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
@@ -61,15 +74,16 @@ export class PerformanceOptimizer {
       "base-uri 'self'",
       "form-action 'self'",
       "frame-ancestors 'none'",
-      "connect-src 'self' api.codesenseisearch.com"
+      `connect-src ${connectSrc}`,
     ];
-    
+
     if (isDevelopment) {
       // More permissive for development
       directives[1] = "script-src 'self' 'unsafe-inline' 'unsafe-eval' localhost:* 127.0.0.1:*";
-      directives.push("connect-src 'self' localhost:* 127.0.0.1:* ws: wss:");
+      directives[directives.length - 1] =
+        `connect-src ${connectSrc} localhost:* 127.0.0.1:* ws: wss:`;
     }
-    
+
     return directives.join('; ');
   }
 
@@ -141,12 +155,7 @@ export const criticalResourceHints = {
     }
   ],
   
-  api: [
-    {
-      href: '//api.codesenseisearch.com',
-      rel: 'dns-prefetch'
-    }
-  ]
+  api: [] as Array<{ href: string; rel: string }>
 };
 
 /**

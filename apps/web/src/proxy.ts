@@ -40,11 +40,13 @@ export function proxy(request: NextRequest) {
   // Add performance monitoring
   PerformanceOptimizer.addPerformanceHeaders(response, startTime);
 
-  // Add preload hints for critical resources
+  // Preconnect hints only — don't preload /app/globals.css: Next.js
+  // emits the stylesheet under a content-hashed /_next/static path, so
+  // the literal path 404s and the browser downgrades rendering to
+  // unstyled HTML while it retries.
   const preloadHints = [
-    '</app/globals.css>; rel=preload; as=style',
     '<https://fonts.googleapis.com>; rel=preconnect',
-    '<https://fonts.gstatic.com>; rel=preconnect; crossorigin'
+    '<https://fonts.gstatic.com>; rel=preconnect; crossorigin',
   ];
   response.headers.set('Link', preloadHints.join(', '));
 

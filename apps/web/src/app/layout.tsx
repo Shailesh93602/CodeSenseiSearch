@@ -70,12 +70,6 @@ export default function RootLayout({
         {/* Preconnect to external domains */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        
-        {/* DNS prefetch for performance */}
-        <link rel="dns-prefetch" href="//api.codesenseisearch.com" />
-        
-        {/* Critical CSS inlining hint */}
-        <link rel="preload" href="/app/globals.css" as="style" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
