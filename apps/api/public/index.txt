@@ -1,0 +1,1 @@
+CodeSenseiSearch API — see /api/health for status.
