@@ -4,19 +4,21 @@ import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
 import { StructuredData } from '@/components/seo/StructuredData';
 
 export const metadata: Metadata = SEOMetadata.generateMetadata({
-  title: 'Integration Guide | CodeSenseiSearch Developer Integration',
-  description: 'Learn how to integrate CodeSenseiSearch into VS Code, IntelliJ, CLI tools, and custom applications with comprehensive guides.',
+  title: 'Integration Guide | CodeSenseiSearch',
+  description:
+    'How to call the CodeSenseiSearch API from your own app, and how to run the full stack locally with Docker Compose.',
   keywords: [
-    'IDE integration',
-    'VS Code extension',
-    'IntelliJ plugin',
-    'CLI tool',
-    'developer integration',
-    'workflow automation',
-    'code search integration'
+    'integration',
+    'fetch API',
+    'curl examples',
+    'local development',
+    'docker compose',
   ],
-  url: 'https://codesenseisearch.com/docs/integration',
+  url: 'https://code-sensei-search-web.vercel.app/docs/integration',
 });
+
+const API_BASE = 'https://code-sensei-search-api.vercel.app/api';
+const REPO_URL = 'https://github.com/Shailesh93602/CodeSenseiSearch';
 
 const breadcrumbs = [
   { name: 'Home', href: '/' },
@@ -24,147 +26,15 @@ const breadcrumbs = [
   { name: 'Integration Guide', href: '/docs/integration', current: true },
 ];
 
-const integrations = [
-  {
-    name: 'VS Code Extension',
-    description: 'Search code directly from your editor with intelligent suggestions',
-    icon: '🎨',
-    features: [
-      'Inline search results',
-      'Code snippet insertion',
-      'Context-aware suggestions',
-      'Keyboard shortcuts'
-    ],
-    installation: `# Install from VS Code Marketplace
-code --install-extension codesenseisearch.vscode-extension
-
-# Or search "CodeSenseiSearch" in Extensions panel`,
-    usage: `// Use Ctrl+Shift+S to open search
-// Or right-click and select "Search with CodeSensei"
-const result = await fetchUserData();`,
-    status: 'Available'
-  },
-  {
-    name: 'CLI Tool',
-    description: 'Command-line interface for terminal-based development workflows',
-    icon: '⌨️',
-    features: [
-      'Search from terminal',
-      'JSON output format',
-      'Configurable output',
-      'Shell integration'
-    ],
-    installation: `# Install via npm
-npm install -g @codesenseisearch/cli
-
-# Or download binary
-curl -L https://releases.codesenseisearch.com/cli/latest/linux.tar.gz`,
-    usage: `# Basic search
-codesenseisearch "async await error handling"
-
-# With language filter
-codesenseisearch "pandas dataframe" --language python
-
-# JSON output
-codesenseisearch "react hooks" --format json`,
-    status: 'Available'
-  },
-  {
-    name: 'IntelliJ Plugin',
-    description: 'Native integration for JetBrains IDEs including IntelliJ, PyCharm, WebStorm',
-    icon: '🧩',
-    features: [
-      'IDE-native search panel',
-      'Smart code completion',
-      'Project context awareness',
-      'Multiple IDE support'
-    ],
-    installation: `# Install from JetBrains Marketplace
-# Go to Settings → Plugins → Marketplace
-# Search for "CodeSenseiSearch"`,
-    usage: `// Use Tools → CodeSenseiSearch → Search
-// Or Alt+Shift+C shortcut
-// Results appear in dedicated tool window`,
-    status: 'Beta'
-  },
-  {
-    name: 'Vim/Neovim Plugin',
-    description: 'Lightweight plugin for Vim and Neovim users',
-    icon: '📝',
-    features: [
-      'Fuzzy search integration',
-      'Result preview',
-      'Minimal configuration',
-      'Async operations'
-    ],
-    installation: `" Using vim-plug
-Plug 'codesenseisearch/vim-codesenseisearch'
-
-" Using packer.nvim
-use 'codesenseisearch/vim-codesenseisearch'`,
-    usage: `" Search with :CS command
-:CS async await
-
-" Search current word
-<leader>cs
-
-" Search visual selection
-<leader>cv`,
-    status: 'Coming Soon'
-  }
-];
-
-const customIntegrations = [
-  {
-    title: 'Webhook Integration',
-    description: 'Receive notifications about new code matching your interests',
-    code: `{
-  "webhook_url": "https://your-app.com/webhook",
-  "events": ["new_match", "trending_code"],
-  "filters": {
-    "languages": ["javascript", "python"],
-    "keywords": ["authentication", "security"]
-  }
-}`
-  },
-  {
-    title: 'Slack Bot',
-    description: 'Search code directly from Slack channels',
-    code: `/codesensesearch async await error handling
-
-# Bot responds with top results
-🔍 Found 5 results for "async await error handling"
-1. Error handling best practices (⭐ 4.9)
-2. Try-catch with async/await (⭐ 4.7)
-3. Promise rejection handling (⭐ 4.5)`
-  },
-  {
-    title: 'GitHub Action',
-    description: 'Automatically search for similar code in pull requests',
-    code: `name: Code Review Assistant
-on: [pull_request]
-jobs:
-  review:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: codesenseisearch/github-action@v1
-        with:
-          api_key: \${{ secrets.CODESENSEISEARCH_API_KEY }}
-          comment_on_pr: true`
-  }
-];
-
 export default function IntegrationPage() {
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'TechArticle',
     headline: 'CodeSenseiSearch Integration Guide',
-    description: 'Complete guide for integrating CodeSenseiSearch into development workflows',
-    url: 'https://codesenseisearch.com/docs/integration',
-    author: {
-      '@type': 'Organization',
-      name: 'CodeSenseiSearch Team'
-    }
+    description:
+      'Calling the CodeSenseiSearch API from client apps, and running the stack locally.',
+    url: 'https://code-sensei-search-web.vercel.app/docs/integration',
+    author: { '@type': 'Person', name: 'Shailesh Chaudhari' },
   };
 
   return (
@@ -172,226 +42,219 @@ export default function IntegrationPage() {
       <StructuredData data={structuredData} />
       <div className="min-h-screen bg-white">
         {/* Header */}
-        <div className="bg-linear-to-r from-purple-600 to-indigo-600">
+        <div className="bg-linear-to-r from-purple-600 to-blue-600">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
             <Breadcrumbs items={breadcrumbs} className="mb-8" />
             <div className="text-center">
-              <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
                 Integration Guide
               </h1>
-              <p className="text-xl text-white/90 max-w-3xl mx-auto mb-8">
-                Integrate CodeSenseiSearch into your development workflow with IDE extensions, 
-                CLI tools, and custom integrations.
+              <p className="text-lg text-white/90 max-w-3xl mx-auto">
+                This is a portfolio reference build — there&apos;s no SDK to
+                install. Integration is &ldquo;call the REST API over HTTPS
+                from your own code.&rdquo; These examples walk through the
+                common client flows and show how to run the full stack
+                locally.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Overview */}
-        <section className="py-12 bg-purple-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Choose Your Integration</h2>
-              <p className="text-gray-600">Multiple ways to bring CodeSenseiSearch into your development environment</p>
-            </div>
-            
-            <div className="grid md:grid-cols-4 gap-6">
-              <div className="text-center p-6 bg-white rounded-lg shadow">
-                <span className="text-3xl mb-2 block">🎨</span>
-                <h3 className="font-semibold">IDE Extensions</h3>
-                <p className="text-sm text-gray-600">Native editor integration</p>
-              </div>
-              
-              <div className="text-center p-6 bg-white rounded-lg shadow">
-                <span className="text-3xl mb-2 block">⌨️</span>
-                <h3 className="font-semibold">CLI Tools</h3>
-                <p className="text-sm text-gray-600">Terminal-based access</p>
-              </div>
-              
-              <div className="text-center p-6 bg-white rounded-lg shadow">
-                <span className="text-3xl mb-2 block">🔧</span>
-                <h3 className="font-semibold">API Integration</h3>
-                <p className="text-sm text-gray-600">Custom applications</p>
-              </div>
-              
-              <div className="text-center p-6 bg-white rounded-lg shadow">
-                <span className="text-3xl mb-2 block">🤖</span>
-                <h3 className="font-semibold">Automation</h3>
-                <p className="text-sm text-gray-600">Workflows & bots</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* IDE and Tool Integrations */}
+        {/* Calling the API */}
         <section className="py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">
-              IDE & Editor Integrations
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-3xl font-bold text-slate-900 mb-8">
+              Calling the deployed API
             </h2>
-            
-            <div className="space-y-12">
-              {integrations.map((integration, index) => (
-                <div key={index} className="bg-white rounded-lg shadow-lg overflow-hidden">
-                  <div className="p-6 border-b">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center">
-                        <span className="text-3xl mr-4">{integration.icon}</span>
-                        <div>
-                          <h3 className="text-xl font-bold text-gray-900">{integration.name}</h3>
-                          <p className="text-gray-600">{integration.description}</p>
-                        </div>
-                      </div>
-                      <span className={`px-3 py-1 rounded text-sm font-medium ${
-                        integration.status === 'Available' ? 'bg-green-100 text-green-800' :
-                        integration.status === 'Beta' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {integration.status}
-                      </span>
-                    </div>
-                    
-                    <div className="grid md:grid-cols-4 gap-4 mb-6">
-                      {integration.features.map((feature, idx) => (
-                        <div key={idx} className="flex items-center text-sm text-gray-600">
-                          <span className="w-1.5 h-1.5 bg-purple-400 rounded-full mr-2"></span>
-                          {feature}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="p-6">
-                    <div className="grid md:grid-cols-2 gap-8">
-                      <div>
-                        <h4 className="font-semibold mb-3">Installation</h4>
-                        <pre className="bg-gray-900 text-green-400 p-4 rounded text-sm overflow-x-auto">
-                          <code>{integration.installation}</code>
-                        </pre>
-                      </div>
-                      
-                      <div>
-                        <h4 className="font-semibold mb-3">Usage</h4>
-                        <pre className="bg-gray-900 text-green-400 p-4 rounded text-sm overflow-x-auto">
-                          <code>{integration.usage}</code>
-                        </pre>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+
+            <div className="space-y-10">
+              <Snippet
+                title="Browser / fetch"
+                description="From the browser or any fetch-compatible runtime. Same origin to the deployed web app OR an origin allow-listed via the API's FRONTEND_URL env var."
+                code={`const res = await fetch(
+  "${API_BASE}/search/hybrid",
+  {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      query: "useEffect cleanup",
+      options: { limit: 10 },
+    }),
+  },
+);
+
+const { data } = await res.json();
+console.log(data.results);`}
+              />
+
+              <Snippet
+                title="Node.js (without next/react)"
+                description="Pure Node script. No SDK — just native fetch (Node 18+)."
+                code={`import { setTimeout as sleep } from "node:timers/promises";
+
+async function search(q) {
+  const res = await fetch("${API_BASE}/search/hybrid", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ query: q, options: { limit: 5 } }),
+  });
+  if (!res.ok) throw new Error(\`\${res.status}\`);
+  return (await res.json()).data;
+}
+
+const { results } = await search("pgvector HNSW");
+results.forEach((r) => console.log(r.title, r.similarity));`}
+              />
+
+              <Snippet
+                title="Python"
+                description="Python 3.10+ with `requests` or `httpx`."
+                code={`import requests
+
+r = requests.post(
+    "${API_BASE}/search/hybrid",
+    json={"query": "async await vs promises", "options": {"limit": 5}},
+    timeout=15,
+)
+r.raise_for_status()
+for hit in r.json()["data"]["results"]:
+    print(hit["title"], hit.get("similarity"))`}
+              />
+
+              <Snippet
+                title="curl"
+                description="For one-off sanity checks or shell pipelines."
+                code={`curl -X POST ${API_BASE}/search/hybrid \\
+  -H "content-type: application/json" \\
+  -d '{"query":"JWT refresh token rotation","options":{"limit":5}}' \\
+  | jq '.data.results[] | {title, similarity}'`}
+              />
             </div>
           </div>
         </section>
 
-        {/* Custom Integrations */}
-        <section className="py-16 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">
-              Custom Integrations
+        {/* Local dev */}
+        <section className="py-16 bg-slate-50">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-3xl font-bold text-slate-900 mb-3">
+              Running the stack locally
             </h2>
-            
-            <div className="grid md:grid-cols-3 gap-8">
-              {customIntegrations.map((integration, index) => (
-                <div key={index} className="bg-white rounded-lg shadow-lg overflow-hidden">
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-900 mb-3">
-                      {integration.title}
-                    </h3>
-                    <p className="text-gray-600 mb-4">{integration.description}</p>
-                    
-                    <div className="bg-gray-900 text-green-400 p-4 rounded text-sm overflow-x-auto">
-                      <pre><code>{integration.code}</code></pre>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Configuration */}
-        <section className="py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-8">Configuration</h2>
-            
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="font-semibold mb-4">Environment Variables</h3>
-                <div className="bg-gray-900 text-green-400 p-4 rounded text-sm">
-                  <code>
-                    # Required<br />
-                    CODESENSEISEARCH_API_KEY=your_api_key_here<br />
-                    <br />
-                    # Optional<br />
-                    CODESENSEISEARCH_API_URL=https://api.codesenseisearch.com<br />
-                    CODESENSEISEARCH_TIMEOUT=5000<br />
-                    CODESENSEISEARCH_MAX_RESULTS=20
-                  </code>
-                </div>
-              </div>
-              
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="font-semibold mb-4">Configuration File</h3>
-                <div className="bg-gray-900 text-green-400 p-4 rounded text-sm">
-                  <code>
-                    {`{
-  "apiKey": "your_api_key",
-  "defaultLanguage": "javascript",
-  "maxResults": 10,
-  "autoComplete": true,
-  "cacheResults": true,
-  "timeout": 5000
-}`}
-                  </code>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Support */}
-        <section className="py-16 bg-purple-600 text-white">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl font-bold mb-6">Need Help with Integration?</h2>
-            <p className="text-xl mb-8 opacity-90">
-              Our team is here to help you integrate CodeSenseiSearch successfully
+            <p className="text-slate-600 mb-8">
+              You can clone the repo and run everything end-to-end on your
+              machine. You&apos;ll need Docker, Node 20+, and pnpm 10.
             </p>
-            
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="p-6 bg-purple-500 rounded-lg">
-                <h3 className="font-semibold mb-2">📧 Integration Support</h3>
-                <p className="text-purple-100 text-sm mb-3">
-                  Get help with custom integrations
-                </p>
-                <a href="mailto:integrations@codesenseisearch.com" className="text-purple-200 hover:text-white">
-                  integrations@codesenseisearch.com
-                </a>
-              </div>
-              
-              <div className="p-6 bg-purple-500 rounded-lg">
-                <h3 className="font-semibold mb-2">💬 Developer Community</h3>
-                <p className="text-purple-100 text-sm mb-3">
-                  Join other developers building integrations
-                </p>
-                <a href="/community" className="text-purple-200 hover:text-white">
-                  Join Community
-                </a>
-              </div>
-              
-              <div className="p-6 bg-purple-500 rounded-lg">
-                <h3 className="font-semibold mb-2">📖 Examples Repository</h3>
-                <p className="text-purple-100 text-sm mb-3">
-                  Browse integration examples and templates
-                </p>
-                <a href="https://github.com/codesenseisearch/examples" className="text-purple-200 hover:text-white">
-                  View Examples
-                </a>
-              </div>
+
+            <div className="space-y-8">
+              <Snippet
+                title="1. Clone and install"
+                description="The monorepo uses pnpm workspaces."
+                code={`git clone ${REPO_URL}.git
+cd CodeSenseiSearch
+pnpm install`}
+              />
+
+              <Snippet
+                title="2. Start Postgres (pgvector) + Redis"
+                description="docker-compose.yml at the repo root brings up both. Ports map to the defaults (5432 / 6379)."
+                code={`docker compose up -d
+
+# Check they're running
+docker compose ps`}
+              />
+
+              <Snippet
+                title="3. Configure env vars for the API"
+                description={`Copy the example file, fill in your Gemini API key. Leave the other defaults unless you changed the docker-compose ports.`}
+                code={`cd apps/api
+cp .env.example .env
+
+# Edit .env:
+#   GEMINI_API_KEY=...           (required for embeddings)
+#   DATABASE_URL=...             (defaults match docker-compose)
+#   DIRECT_URL=...               (same host as DATABASE_URL)
+#   REDIS_HOST=localhost REDIS_PORT=6379`}
+              />
+
+              <Snippet
+                title="4. Generate Prisma client + apply migrations"
+                description="Writes the client to apps/api/src/generated/prisma. Migrations create the tables + the pgvector extension."
+                code={`pnpm --filter api db:generate
+pnpm --filter api db:migrate`}
+              />
+
+              <Snippet
+                title="5. Run both apps in parallel"
+                description="The web app assumes the API is on http://localhost:3001/api (set via NEXT_PUBLIC_API_URL). If you changed ports, edit apps/web/.env.local."
+                code={`# From the repo root
+pnpm dev
+
+# Or run them individually
+pnpm --filter api dev     # http://localhost:3001
+pnpm --filter web dev     # http://localhost:3000`}
+              />
             </div>
+          </div>
+        </section>
+
+        {/* What's NOT here */}
+        <section className="py-16">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-3xl font-bold text-slate-900 mb-6">
+              What this project intentionally doesn&apos;t ship
+            </h2>
+            <p className="text-slate-600 mb-6">
+              Keeping the scope honest: there&apos;s no VS Code extension, no
+              JetBrains plugin, no Slack bot, no hosted SDK package. Those
+              would be separate projects. The contract is the REST API
+              documented at{' '}
+              <a
+                href="/docs/api"
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                /docs/api
+              </a>
+              — anything you&apos;d want to build on top lives in your own
+              code.
+            </p>
+            <p className="text-slate-600">
+              If you need autocomplete while building against the API, hit
+              the live Swagger UI at{' '}
+              <a
+                href={`${API_BASE}/docs`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                {API_BASE}/docs
+              </a>{' '}
+              and generate a client from the OpenAPI spec with whatever
+              tool you prefer (openapi-typescript, openapi-generator, etc).
+            </p>
           </div>
         </section>
       </div>
     </>
+  );
+}
+
+function Snippet({
+  title,
+  description,
+  code,
+}: {
+  title: string;
+  description: string;
+  code: string;
+}) {
+  return (
+    <div>
+      <h3 className="text-xl font-semibold text-slate-900 mb-1">{title}</h3>
+      <p className="text-sm text-slate-600 mb-3 leading-relaxed">
+        {description}
+      </p>
+      <pre className="overflow-x-auto rounded-lg bg-slate-900 p-5 text-sm text-green-300">
+        <code>{code}</code>
+      </pre>
+    </div>
   );
 }

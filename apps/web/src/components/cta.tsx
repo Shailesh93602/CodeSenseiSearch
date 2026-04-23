@@ -1,60 +1,60 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ArrowRight, Mail } from "lucide-react";
+import { ArrowRight, Code2, BookOpen } from "lucide-react";
+
+const REPO_URL = "https://github.com/Shailesh93602/CodeSenseiSearch";
 
 export function CTA() {
   return (
     <section className="py-24 bg-slate-900">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="mx-auto max-w-4xl text-center">
+        <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Ready to supercharge your development workflow?
+            Poke around, break it, read the code
           </h2>
           <p className="mt-6 text-lg leading-8 text-slate-300">
-            Join thousands of developers who are already finding code faster with AI-powered search.
-            Get early access and be among the first to experience the future of developer search.
+            Try the deployed search, skim the architecture notes in the docs,
+            or clone the repo and run it locally — Docker Compose spins up
+            Postgres + Redis in one command. Pull requests and honest
+            feedback welcome.
           </p>
 
-          {/* Email Signup */}
-          <div className="mt-10">
-            <div className="flex max-w-md mx-auto gap-3">
-              <div className="relative flex-1">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input
-                  type="email"
-                  placeholder="Enter your email"
-                  className="h-12 pl-10 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:bg-white/20 focus:border-blue-400"
-                />
-              </div>
-              <Button size="lg" className="h-12 px-6 bg-blue-600 hover:bg-blue-700">
-                Get Early Access
+          <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Link href="/search" prefetch={false}>
+              <Button
+                size="lg"
+                className="h-12 px-6 bg-blue-600 hover:bg-blue-700"
+              >
+                Try the search
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-            </div>
-            <p className="mt-3 text-sm text-slate-400">
-              No spam. Unsubscribe at any time.
-            </p>
+            </Link>
+            <Link href="/docs" prefetch={false}>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-12 px-6 border-white/20 text-white hover:bg-white/10"
+              >
+                <BookOpen className="mr-2 h-4 w-4" />
+                Read the docs
+              </Button>
+            </Link>
+            <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-12 px-6 border-white/20 text-white hover:bg-white/10"
+              >
+                <Code2 className="mr-2 h-4 w-4" />
+                View source
+              </Button>
+            </a>
           </div>
 
-          {/* Social Proof */}
-          <div className="mt-16 grid grid-cols-2 gap-8 sm:grid-cols-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-white sm:text-3xl">1000+</div>
-              <div className="text-sm text-slate-400">Developers waiting</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-white sm:text-3xl">24/7</div>
-              <div className="text-sm text-slate-400">Search availability</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-white sm:text-3xl">99.9%</div>
-              <div className="text-sm text-slate-400">Uptime SLA</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-white sm:text-3xl">Free</div>
-              <div className="text-sm text-slate-400">For developers</div>
-            </div>
-          </div>
+          <p className="mt-8 text-sm text-slate-500">
+            This is a portfolio reference build. No accounts, no email list,
+            no billing — just a live deploy of the code in the repo.
+          </p>
         </div>
       </div>
     </section>

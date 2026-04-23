@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { SearchBar } from "@/components/search-bar";
 import { SearchFilters } from "@/components/search-filters";
 import { SearchResults } from "@/components/search-results";
@@ -11,9 +11,19 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Filter } from "lucide-react";
 
 export default function SearchContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const qParam = searchParams.get('q');
   const [query, setQuery] = useState(qParam || "");
+
+  const handleSubmitQuery = useCallback(() => {
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    // Mirror query into the URL so reload / share keeps the state.
+    // SearchResults watches `query` and fires the API call; we don't
+    // need to trigger it again here.
+    router.replace(`/search?q=${encodeURIComponent(trimmed)}`);
+  }, [query, router]);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [filters, setFilters] = useState({
     source: "all", // all, github, stackoverflow, docs
@@ -71,9 +81,14 @@ export default function SearchContent() {
                 </SheetContent>
               </Sheet>
               
-              <button className="text-slate-600 hover:text-slate-900 text-sm font-medium transition-colors">
-                Sign In
-              </button>
+              <a
+                href="https://github.com/Shailesh93602/CodeSenseiSearch"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden sm:inline-flex text-slate-600 hover:text-slate-900 text-sm font-medium transition-colors"
+              >
+                GitHub
+              </a>
             </div>
           </div>
         </div>
@@ -92,13 +107,10 @@ export default function SearchContent() {
           {/* Search Results */}
           <div className="flex-1 min-w-0">
             <div className="mb-4 sm:mb-6">
-              <SearchBar 
-                query={query} 
+              <SearchBar
+                query={query}
                 onQueryChange={setQuery}
-                onSearch={() => {
-                  // Force search trigger when user clicks search or presses enter
-                  // The SearchResults component will handle the actual search
-                }}
+                onSearch={handleSubmitQuery}
               />
             </div>
             

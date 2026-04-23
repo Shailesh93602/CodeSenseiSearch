@@ -11,88 +11,24 @@ const breadcrumbs = [
   { name: 'Documentation', href: '/docs', current: true },
 ];
 
+const REPO_URL = 'https://github.com/Shailesh93602/CodeSenseiSearch';
+const SITE_URL = 'https://code-sensei-search-web.vercel.app';
+
 const sections = [
   {
-    title: 'Getting Started',
-    description: 'Quick start guide to using CodeSenseiSearch effectively',
-    href: '/docs/getting-started',
-    icon: '🚀',
-    topics: [
-      'Basic search techniques',
-      'Understanding search results',
-      'Filtering and sorting',
-      'Creating your first search'
-    ]
-  },
-  {
     title: 'API Reference',
-    description: 'Complete REST API documentation with examples',
+    description:
+      'REST endpoints: /search/hybrid, /search/semantic, /search/text, /search/suggestions, /search/stats. Each with request/response shape and a curl example.',
     href: '/docs/api',
-    icon: '📚',
-    topics: [
-      'Authentication',
-      'Search endpoints',
-      'Rate limiting',
-      'Response formats'
-    ]
+    badge: 'REST',
   },
   {
     title: 'Integration Guide',
-    description: 'Integrate CodeSenseiSearch into your development workflow',
+    description:
+      'Calling the deployed API from a client app, wiring the JS SDK shim, running the full stack locally with Docker Compose.',
     href: '/docs/integration',
-    icon: '🔧',
-    topics: [
-      'IDE extensions',
-      'CLI tools',
-      'Webhook integration',
-      'Custom implementations'
-    ]
+    badge: 'How-to',
   },
-  {
-    title: 'Advanced Search',
-    description: 'Master advanced search techniques and operators',
-    href: '/docs/advanced-search',
-    icon: '🎯',
-    topics: [
-      'Search operators',
-      'Language-specific filters',
-      'Code pattern matching',
-      'Semantic queries'
-    ]
-  },
-  {
-    title: 'Use Cases',
-    description: 'Real-world examples and common usage patterns',
-    href: '/docs/use-cases',
-    icon: '💡',
-    topics: [
-      'Code review assistance',
-      'Learning new frameworks',
-      'Bug fixing workflows',
-      'API discovery'
-    ]
-  },
-  {
-    title: 'Troubleshooting',
-    description: 'Common issues and their solutions',
-    href: '/docs/troubleshooting',
-    icon: '🛠️',
-    topics: [
-      'Search not returning results',
-      'Performance issues',
-      'Authentication problems',
-      'Feature requests'
-    ]
-  }
-];
-
-const quickLinks = [
-  { name: 'Search JavaScript Code', href: '/javascript' },
-  { name: 'Search Python Examples', href: '/python' },
-  { name: 'Search React Components', href: '/react' },
-  { name: 'API Endpoints', href: '/docs/api' },
-  { name: 'Code Examples', href: '/docs/examples' },
-  { name: 'Community Forum', href: '/community' }
 ];
 
 export default function DocsPage() {
@@ -100,19 +36,12 @@ export default function DocsPage() {
     '@context': 'https://schema.org',
     '@type': 'TechArticle',
     headline: 'CodeSenseiSearch Documentation',
-    description: 'Complete documentation for CodeSenseiSearch API and integration guides',
-    url: 'https://codesenseisearch.com/docs',
+    description:
+      'Documentation for the CodeSenseiSearch REST API and local development setup.',
+    url: `${SITE_URL}/docs`,
     author: {
-      '@type': 'Organization',
-      name: 'CodeSenseiSearch Team'
-    },
-    publisher: {
-      '@type': 'Organization',
-      name: 'CodeSenseiSearch',
-      logo: {
-        '@type': 'ImageObject',
-        url: 'https://codesenseisearch.com/logo.png'
-      }
+      '@type': 'Person',
+      name: 'Shailesh Chaudhari',
     },
     mainEntity: {
       '@type': 'ItemList',
@@ -122,9 +51,9 @@ export default function DocsPage() {
         position: index + 1,
         name: section.title,
         description: section.description,
-        url: `https://codesenseisearch.com${section.href}`
-      }))
-    }
+        url: `${SITE_URL}${section.href}`,
+      })),
+    },
   };
 
   return (
@@ -136,109 +65,102 @@ export default function DocsPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
             <Breadcrumbs items={breadcrumbs} className="mb-8" />
             <div className="text-center">
-              <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
                 Documentation
               </h1>
-              <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
-                Everything you need to know about using CodeSenseiSearch effectively. 
-                From basic searches to advanced API integration.
+              <p className="text-lg text-slate-300 max-w-3xl mx-auto">
+                How the stack is put together, how to call the API, and how
+                to run it yourself. The source of truth is the repo — these
+                pages are summaries with runnable examples.
               </p>
-              
-              {/* Search Documentation */}
-              <div className="max-w-2xl mx-auto">
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search documentation..."
-                    className="w-full px-6 py-4 text-lg rounded-lg border-0 shadow-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button className="absolute right-2 top-2 bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors">
-                    Search
-                  </button>
-                </div>
+              <div className="mt-8 flex flex-wrap justify-center gap-3">
+                <a
+                  href={REPO_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-md bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/20 transition-colors"
+                >
+                  View repo on GitHub
+                </a>
+                <Link
+                  href="/search"
+                  className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 transition-colors"
+                >
+                  Try the search
+                </Link>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Quick Start */}
-        <section className="py-12 bg-blue-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Quick Start</h2>
-              <p className="text-gray-600">Get up and running in minutes</p>
-            </div>
-            
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500">
-                <div className="flex items-center mb-4">
-                  <span className="text-2xl mr-3">1️⃣</span>
-                  <h3 className="font-semibold">Search Code</h3>
-                </div>
-                <p className="text-gray-600 text-sm">
-                  Enter your search query using natural language or specific code patterns
-                </p>
-              </div>
-              
-              <div className="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
-                <div className="flex items-center mb-4">
-                  <span className="text-2xl mr-3">2️⃣</span>
-                  <h3 className="font-semibold">Filter Results</h3>
-                </div>
-                <p className="text-gray-600 text-sm">
-                  Use language filters, repository sources, and relevance sorting
-                </p>
-              </div>
-              
-              <div className="bg-white p-6 rounded-lg shadow border-l-4 border-purple-500">
-                <div className="flex items-center mb-4">
-                  <span className="text-2xl mr-3">3️⃣</span>
-                  <h3 className="font-semibold">Integrate & Use</h3>
-                </div>
-                <p className="text-gray-600 text-sm">
-                  Copy code snippets or integrate via API into your development workflow
-                </p>
-              </div>
+        {/* Stack summary */}
+        <section className="py-12 bg-slate-50">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl font-bold text-slate-900 mb-6 text-center">
+              What&apos;s running behind this site
+            </h2>
+            <div className="grid gap-4 md:grid-cols-2">
+              <StackRow
+                label="Frontend"
+                value="Next.js 16 (App Router) on Vercel"
+                detail="Server components where possible; client components only for the search bar, results, and filter sheet."
+              />
+              <StackRow
+                label="API"
+                value="NestJS on Vercel serverless functions"
+                detail="Express handler bootstraps Nest once per cold start and reuses the app across warm invocations. Swagger at /api/docs."
+              />
+              <StackRow
+                label="Database"
+                value="Supabase Postgres with pgvector"
+                detail="Pooled connection (pgbouncer, port 6543) for runtime queries; direct (5432) for Prisma migrations. HNSW-ready vector column."
+              />
+              <StackRow
+                label="Embeddings"
+                value="Gemini text-embedding-004"
+                detail="768 dimensions. RETRIEVAL_DOCUMENT task type at ingest, RETRIEVAL_QUERY at search time."
+              />
+              <StackRow
+                label="Ingestion workers"
+                value="BullMQ on Upstash Redis"
+                detail="Workers skipped in serverless mode; ingestion runs from a laptop or a Vercel cron POST against a trigger endpoint."
+              />
+              <StackRow
+                label="Observability"
+                value="pino structured logs + Sentry"
+                detail="One JSON line per request. Health endpoint reports DB, Redis, and Gemini reachability separately."
+              />
             </div>
           </div>
         </section>
 
         {/* Documentation Sections */}
         <section className="py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">
-              Documentation Sections
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-3xl font-bold text-slate-900 mb-10 text-center">
+              Guides
             </h2>
-            
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+            <div className="grid md:grid-cols-2 gap-6">
               {sections.map((section) => (
                 <Link
                   key={section.href}
                   href={section.href}
-                  className="group bg-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 overflow-hidden border hover:border-blue-300"
+                  className="group block rounded-lg border border-slate-200 bg-white p-6 shadow-sm hover:border-blue-300 hover:shadow-md transition-all"
                 >
-                  <div className="p-6">
-                    <div className="flex items-center mb-4">
-                      <span className="text-3xl mr-4">{section.icon}</span>
-                      <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-                        {section.title}
-                      </h3>
-                    </div>
-                    
-                    <p className="text-gray-600 mb-4">{section.description}</p>
-                    
-                    <ul className="space-y-1">
-                      {section.topics.map((topic) => (
-                        <li key={topic} className="text-sm text-gray-500 flex items-center">
-                          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mr-2"></span>
-                          {topic}
-                        </li>
-                      ))}
-                    </ul>
-                    
-                    <div className="mt-4 text-blue-600 font-medium group-hover:text-blue-800 transition-colors">
-                      Read documentation →
-                    </div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xl font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+                      {section.title}
+                    </h3>
+                    <span className="rounded bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                      {section.badge}
+                    </span>
+                  </div>
+                  <p className="text-slate-600 leading-relaxed">
+                    {section.description}
+                  </p>
+                  <div className="mt-4 text-sm font-medium text-blue-600 group-hover:text-blue-800">
+                    Read &rarr;
                   </div>
                 </Link>
               ))}
@@ -246,71 +168,55 @@ export default function DocsPage() {
           </div>
         </section>
 
-        {/* Quick Links */}
-        <section className="py-16 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">
-              Popular Documentation Topics
+        {/* Quick commands */}
+        <section className="py-16 bg-slate-900 text-slate-100">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-2xl font-bold mb-6 text-center">
+              Run it locally
             </h2>
-            
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {quickLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 hover:border-blue-300 text-center"
-                >
-                  <span className="text-blue-600 font-medium hover:text-blue-800 transition-colors">
-                    {link.name}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
+            <pre className="overflow-x-auto rounded-lg bg-black/40 p-6 text-sm text-slate-100">
+              <code>{`git clone ${REPO_URL}.git
+cd CodeSenseiSearch
 
-        {/* Help Section */}
-        <section className="py-16 bg-slate-800 text-white">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl font-bold mb-6">Need More Help?</h2>
-            <p className="text-xl mb-8 text-gray-300">
-              Can&apos;t find what you&apos;re looking for? We&apos;re here to help.
+# Spin up Postgres (with pgvector) + Redis
+docker compose up -d
+
+# Install + generate Prisma client + migrate
+pnpm install
+pnpm --filter api db:migrate
+
+# Run the API and the web UI in parallel
+pnpm dev`}</code>
+            </pre>
+            <p className="mt-4 text-sm text-slate-400 text-center">
+              Full setup notes including Gemini API key and env vars are in
+              the repo&apos;s README.
             </p>
-            
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="p-6 bg-slate-700 rounded-lg">
-                <h3 className="font-semibold mb-2">📧 Email Support</h3>
-                <p className="text-gray-300 text-sm mb-3">
-                  Get help from our technical team
-                </p>
-                <a href="mailto:support@codesenseisearch.com" className="text-blue-400 hover:text-blue-300">
-                  support@codesenseisearch.com
-                </a>
-              </div>
-              
-              <div className="p-6 bg-slate-700 rounded-lg">
-                <h3 className="font-semibold mb-2">💬 Community Forum</h3>
-                <p className="text-gray-300 text-sm mb-3">
-                  Join discussions with other developers
-                </p>
-                <a href="/community" className="text-blue-400 hover:text-blue-300">
-                  Visit Forum
-                </a>
-              </div>
-              
-              <div className="p-6 bg-slate-700 rounded-lg">
-                <h3 className="font-semibold mb-2">📚 API Status</h3>
-                <p className="text-gray-300 text-sm mb-3">
-                  Check service status and uptime
-                </p>
-                <a href="/status" className="text-blue-400 hover:text-blue-300">
-                  View Status
-                </a>
-              </div>
-            </div>
           </div>
         </section>
       </div>
     </>
+  );
+}
+
+function StackRow({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-5">
+      <div className="text-xs font-mono uppercase tracking-wide text-blue-600">
+        {label}
+      </div>
+      <div className="mt-1 text-base font-semibold text-slate-900">
+        {value}
+      </div>
+      <p className="mt-2 text-sm text-slate-600 leading-relaxed">{detail}</p>
+    </div>
   );
 }
