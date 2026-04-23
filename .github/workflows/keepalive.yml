@@ -1,0 +1,65 @@
+# Daily keepalive ping for the free-tier Supabase Postgres + Upstash
+# Redis backing the deployed API.
+#
+# Why: Supabase pauses free-tier projects after 7 days of inactivity.
+# Upstash also throttles dormant databases. A daily SELECT 1 + Redis
+# PING from CI is enough to keep both warm without burning quota.
+#
+# Setup (one-time): add the following secrets in
+# Settings → Secrets and variables → Actions:
+#   API_HEALTH_URL — the live API root, e.g.
+#                    https://codesensei-api.up.railway.app/api/health
+
+name: Keepalive
+
+on:
+  schedule:
+    # Daily at 09:00 UTC. Mirrors the pattern the owner uses for
+    # KhataGO + EduScale + DevTrack Supabase keepalives.
+    - cron: "0 9 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Hit the API health endpoint
+        env:
+          URL: ${{ secrets.API_HEALTH_URL }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "::warning::API_HEALTH_URL secret not set — skipping ping. Add it in repo settings once deployed."
+            exit 0
+          fi
+
+          # /health performs SELECT 1 against Postgres and PING against
+          # Redis as part of the response — one HTTP call exercises both
+          # dependencies, no need for direct DB / Redis credentials in
+          # CI.
+          response=$(curl -sS -o /tmp/health.json -w "%{http_code}" --max-time 30 "$URL")
+          echo "HTTP $response"
+          cat /tmp/health.json
+          echo
+
+          if [ "$response" -ne 200 ]; then
+            echo "::error::Health check returned $response — backend may be down or paused."
+            exit 1
+          fi
+
+          # Verify both critical components reported up. jq isn't needed
+          # — grep is good enough for the simple status string check.
+          if ! grep -q '"database":{"status":"up"' /tmp/health.json; then
+            echo "::error::Database component reported not up. Postgres may be paused."
+            exit 1
+          fi
+          if ! grep -q '"redis":{"status":"up"' /tmp/health.json; then
+            echo "::error::Redis component reported not up. Upstash may be throttled."
+            exit 1
+          fi
+
+          echo "✓ Postgres + Redis warm."

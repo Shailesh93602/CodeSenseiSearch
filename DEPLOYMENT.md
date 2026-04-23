@@ -73,21 +73,38 @@ git push
 
 ---
 
-## Step 2 — Provision Postgres on Neon (5 min)
+## Step 2 — Provision Postgres on Supabase (5 min)
 
-Neon gives you a Postgres 16 instance with pgvector preinstalled, free.
+> Either Supabase or Neon works — both give you Postgres 15+ with
+> pgvector pre-installed, free. The owner's standing pattern is
+> Supabase, so this guide assumes Supabase. Skip to "Neon variant"
+> below if you'd prefer that instead.
 
-1. Sign up at https://neon.tech (GitHub auth is fine)
-2. Create a project — region: pick whichever is closest to where you'll
-   host the API (Railway lets you pick; default is `us-east-1`)
-3. After creation, you'll see a connection string like:
-   `postgresql://USER:PASSWORD@ep-xxx.us-east-1.aws.neon.tech/neondb?sslmode=require`
-4. **Save it as `DATABASE_URL` somewhere safe** — you'll paste it into
-   Railway in the next step.
-5. In the Neon SQL editor (left sidebar), enable pgvector:
+1. Sign up at https://supabase.com (GitHub auth)
+2. Create a new project → pick a region close to the API host
+3. Note your project ref (e.g. `telynjuvugerjemmknnz`) and DB password
+4. Two connection strings, both required:
+   ```
+   DATABASE_URL=postgresql://postgres.<PROJECT_REF>:<PASSWORD>@aws-1-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+   DIRECT_URL=postgresql://postgres.<PROJECT_REF>:<PASSWORD>@aws-1-us-east-1.pooler.supabase.com:5432/postgres
+   ```
+   - `DATABASE_URL` = pooled connection (port 6543, pgbouncer mode) for
+     runtime queries.
+   - `DIRECT_URL` = unpooled connection (port 5432) for Prisma
+     migrations — pgbouncer can't handle prepared statements during
+     `prisma migrate deploy`.
+   `prisma/schema.prisma` already declares both via `directUrl`.
+5. In the Supabase SQL editor:
    ```sql
    CREATE EXTENSION IF NOT EXISTS vector;
    ```
+
+### Neon variant (skip if using Supabase)
+
+1. Sign up at https://neon.tech, create project
+2. Single connection string under `DATABASE_URL`; leave `DIRECT_URL`
+   unset and Prisma falls back to `DATABASE_URL` for migrations
+3. In Neon SQL editor: `CREATE EXTENSION IF NOT EXISTS vector;`
 
 ---
 
@@ -95,16 +112,35 @@ Neon gives you a Postgres 16 instance with pgvector preinstalled, free.
 
 1. Sign up at https://upstash.com (GitHub auth)
 2. "Create database" → name: `codesensei-redis`, region: same as your
-   Neon region, type: Regional (not Global), TLS: enabled
-3. Copy the **REDIS_URL** (starts with `rediss://`) from the database
-   details page. Save it.
+   Postgres region, type: **Regional** (not Global — BullMQ needs full
+   RESP), TLS: enabled
+3. From the database details page copy the **REDIS URL** — looks like
+   `rediss://default:PASSWORD@HOST:6379`. Parse it into the three env
+   vars Railway expects:
+   ```
+   REDIS_HOST=alive-goblin-105184.upstash.io   # the host
+   REDIS_PORT=6379
+   REDIS_PASSWORD=gQ...gOA                       # the part after default:
+   ```
 
-> Note: BullMQ requires that Redis support the full RESP protocol.
-> Upstash Regional databases do; Upstash Global do not. Pick Regional.
+> ioredis connects with TLS automatically when the host is `*.upstash.io`
+> — no extra `REDIS_TLS=true` env needed.
 
 ---
 
 ## Step 4 — Deploy the API to Railway (10 min)
+
+> **Why not Vercel for the API?** Vercel runs NestJS as serverless
+> functions. That works for the HTTP request/response surface (search,
+> auth, admin endpoints) but **breaks the BullMQ ingestion pipeline**:
+> BullMQ workers need a long-running process with a persistent Redis
+> connection to listen for jobs. Serverless functions die between
+> requests, so workers never run, and the entire ingest → chunk →
+> embed pipeline is dead code. Vercel cron functions can't substitute
+> because Gemini embedding for a typical repo file routinely takes
+> >10s, hitting the Hobby-plan timeout. Use Railway (or Fly.io) for
+> the API; use Vercel only for the Next.js frontend in Step 5.
+
 
 1. Sign up at https://railway.app (GitHub auth)
 2. New Project → "Deploy from GitHub repo" → pick `CodeSenseiSearch`
@@ -117,19 +153,17 @@ Neon gives you a Postgres 16 instance with pgvector preinstalled, free.
    ```env
    NODE_ENV=production
    API_PORT=3001
-   DATABASE_URL=postgresql://...   # from Neon
-   REDIS_HOST=fly-codesensei.upstash.io   # parse from Upstash REDIS_URL
+   DATABASE_URL=postgresql://postgres.<REF>:<PWD>@aws-1-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+   DIRECT_URL=postgresql://postgres.<REF>:<PWD>@aws-1-us-east-1.pooler.supabase.com:5432/postgres
+   REDIS_HOST=alive-goblin-105184.upstash.io   # the host part of your Upstash URL
    REDIS_PORT=6379
-   REDIS_PASSWORD=...   # parse from Upstash REDIS_URL
-   JWT_SECRET=run openssl rand -hex 32 locally and paste the output
-   GEMINI_API_KEY=...   # from aistudio.google.com/app/apikey
+   REDIS_PASSWORD=...                            # the part after default: in your Upstash URL
+   JWT_SECRET=...                                # openssl rand -hex 32
+   GEMINI_API_KEY=...                            # from aistudio.google.com/app/apikey
    FRONTEND_URL=https://codesenseisearch.vercel.app   # update after step 5
    LOG_LEVEL=info
    ```
 
-   > For Upstash: `rediss://default:PASSWORD@HOST:6379` parses to
-   > REDIS_HOST=HOST, REDIS_PORT=6379, REDIS_PASSWORD=PASSWORD. Set
-   > `REDIS_TLS=true` if you add TLS support later (not currently wired).
 5. Once deployed, Railway gives you a public URL like
    `https://codesenseisearch-api.up.railway.app`. Save it.
 6. Verify the deploy:
@@ -137,10 +171,12 @@ Neon gives you a Postgres 16 instance with pgvector preinstalled, free.
    curl https://YOUR-RAILWAY-URL/api/health
    # Expected: { "status": "ok", "components": { "database": { "status": "up", ... } } }
    ```
-7. Apply migrations against the live Neon DB. From your laptop:
+7. Apply migrations against the live Supabase DB. From your laptop:
    ```bash
    cd ~/Desktop/Coding/CodeSenseiSearch/apps/api
-   DATABASE_URL='postgresql://...neon...' pnpm prisma migrate deploy
+   DATABASE_URL='postgresql://...:6543/postgres?pgbouncer=true' \
+     DIRECT_URL='postgresql://...:5432/postgres' \
+     pnpm prisma migrate deploy
    ```
 
 ---
@@ -183,6 +219,31 @@ curl -X POST https://YOUR-RAILWAY-URL/api/search/hybrid \
 # Expected: { "success": true, "data": { "results": [], "totalResults": 0 } }
 # Empty results is fine — corpus isn't seeded yet.
 ```
+
+---
+
+## Step 6.5 — Wire the keepalive cron (1 min)
+
+Free-tier Supabase auto-pauses after ~7 days of inactivity. Free-tier
+Upstash throttles dormant DBs. The repo ships
+[`.github/workflows/keepalive.yml`](.github/workflows/keepalive.yml)
+which hits `/api/health` daily — that single endpoint pings Postgres
++ Redis as part of its check, keeping both warm without needing
+direct DB credentials in CI.
+
+One-time setup:
+
+1. https://github.com/Shailesh93602/CodeSenseiSearch/settings/secrets/actions
+2. New repository secret:
+   - Name: `API_HEALTH_URL`
+   - Value: `https://YOUR-RAILWAY-URL/api/health`
+3. Trigger it once to confirm:
+   ```bash
+   gh workflow run keepalive.yml -R Shailesh93602/CodeSenseiSearch
+   ```
+   Then check Actions → Keepalive — should be green.
+
+The cron runs daily at 09:00 UTC from then on.
 
 ---
 

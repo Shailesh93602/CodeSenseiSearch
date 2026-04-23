@@ -29,8 +29,12 @@ const envSchema = z.object({
   API_PORT: z.coerce.number().int().positive().default(3001),
   FRONTEND_URL: z.url().default('http://localhost:3000'),
 
-  // Database
+  // Database. DATABASE_URL is the pooled connection (Supabase pgbouncer
+  // on port 6543); DIRECT_URL bypasses the pooler and is required for
+  // Prisma migrations. When not on Supabase, DIRECT_URL can be unset
+  // and Prisma falls back to DATABASE_URL.
   DATABASE_URL: z.url({ message: 'DATABASE_URL must be a valid postgres URL' }),
+  DIRECT_URL: z.url().optional(),
 
   // Redis (BullMQ + cache)
   REDIS_HOST: z.string().min(1).default('localhost'),

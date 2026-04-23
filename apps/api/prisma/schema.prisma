@@ -8,7 +8,13 @@ generator client {
 
 datasource db {
   provider   = "postgresql"
+  // DATABASE_URL is the pooled connection (port 6543 + ?pgbouncer=true on
+  // Supabase) used for runtime queries. directUrl is the unpooled
+  // connection (port 5432) Prisma uses for migrations and schema
+  // introspection — pgbouncer can't handle Prisma's prepared-statement
+  // workflow during migrate. Both URLs point at the same database.
   url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
   extensions = [vector]
 }
 
