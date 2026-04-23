@@ -64,11 +64,12 @@ export class GeminiService {
 
     const truncatedContent = this.truncateContent(content);
 
-    const result = await this.withRetry(() =>
-      this.embeddingModelInstance.embedContent({
-        content: { parts: [{ text: truncatedContent }] },
-        taskType: 'RETRIEVAL_DOCUMENT', // Optimized for search/retrieval
-      }),
+    const result = await this.withRetry<{ embedding: { values: number[] } }>(
+      () =>
+        this.embeddingModelInstance.embedContent({
+          content: { parts: [{ text: truncatedContent }] },
+          taskType: 'RETRIEVAL_DOCUMENT', // Optimized for search/retrieval
+        }),
     );
 
     const embedding = result.embedding.values;
@@ -171,11 +172,12 @@ export class GeminiService {
       throw new Error('Gemini service not initialized. Check GEMINI_API_KEY.');
     }
 
-    const result = await this.withRetry(() =>
-      this.embeddingModelInstance.embedContent({
-        content: { parts: [{ text: query }] },
-        taskType: 'RETRIEVAL_QUERY',
-      }),
+    const result = await this.withRetry<{ embedding: { values: number[] } }>(
+      () =>
+        this.embeddingModelInstance.embedContent({
+          content: { parts: [{ text: query }] },
+          taskType: 'RETRIEVAL_QUERY',
+        }),
     );
 
     return result.embedding.values;

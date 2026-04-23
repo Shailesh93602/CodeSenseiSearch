@@ -2,8 +2,19 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { loadEnv } from './config/env';
 
 async function bootstrap() {
+  // Validate env BEFORE Nest constructs the module graph. If a required
+  // var is missing or malformed we exit non-zero with the full list of
+  // problems printed — much friendlier than discovering the gap at the
+  // first failing request.
+  try {
+    loadEnv();
+  } catch {
+    process.exit(1);
+  }
+
   const app = await NestFactory.create(AppModule);
 
   // Enable CORS for frontend communication
