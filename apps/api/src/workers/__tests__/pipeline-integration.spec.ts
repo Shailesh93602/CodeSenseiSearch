@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/unbound-method, @typescript-eslint/require-await --
+   Test file: jest mocks return Promises by convention even when their
+   bodies are synchronous, and the unbound-method rule is irrelevant
+   on mock objects. */
 /**
  * End-to-end pipeline integration test.
  *

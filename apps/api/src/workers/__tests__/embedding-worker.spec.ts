@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/unbound-method --
+   This file intentionally references jest.fn() instances on mock
+   objects; the unbound-method rule is irrelevant here because the
+   "methods" are inert mocks, not bound to a real `this` context. */
 /**
  * Tests for EmbeddingGenerationWorker.generateEmbeddings.
  *
