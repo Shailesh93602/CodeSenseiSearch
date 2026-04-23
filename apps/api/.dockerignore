@@ -1,0 +1,32 @@
+# Files we don't want sent to the Docker daemon during builds.
+# Smaller context = faster builds + smaller images.
+
+node_modules
+**/node_modules
+dist
+**/dist
+.next
+**/.next
+coverage
+**/coverage
+.turbo
+**/.turbo
+
+# Local env (Docker images get their secrets from runtime env)
+.env
+.env.*
+!.env.example
+
+# Tests + dev output
+test-results
+playwright-report
+*.tsbuildinfo
+.eslintcache
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+
+# Audit artifact
+quality.md

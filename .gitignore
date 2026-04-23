@@ -70,9 +70,6 @@ temp/
 *.tmp
 *.temp
 
-# Docker
-.dockerignore
-
 # Prisma
 prisma/migrations/migration_lock.toml
 

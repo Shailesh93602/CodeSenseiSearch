@@ -1,89 +1,71 @@
-# Multi-stage build for NestJS API
-FROM node:18-alpine AS base
+# Multi-stage Dockerfile for the NestJS API.
+#
+# - `deps` installs ONLY production dependencies into a clean layer
+#   (cached unless package.json / pnpm-lock changes).
+# - `build` adds dev deps, generates the Prisma client, and runs
+#   `nest build` so the image at the end ships pre-compiled JS, not
+#   ts-node.
+# - `runner` is a slim node:20-alpine that copies just the production
+#   node_modules + dist + prisma assets. ~150MB total.
+#
+# Built from the monorepo root so pnpm workspaces resolve correctly:
+#   docker build -f apps/api/Dockerfile -t codesensei-api .
 
-# Install pnpm globally
-RUN npm install -g pnpm
+# ─── deps stage ────────────────────────────────────────────────────────────
+FROM node:20-alpine AS deps
+WORKDIR /repo
 
-# Create app directory
-WORKDIR /app
+RUN corepack enable
 
-# Copy workspace configuration
+# Copy workspace manifests first so the install layer caches on lockfile only
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json apps/api/
+COPY packages/shared/package.json packages/shared/
+COPY packages/types/package.json packages/types/
+COPY packages/utils/package.json packages/utils/
 
-# Install dependencies
-RUN pnpm fetch --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
-# Copy source code
+# ─── build stage ───────────────────────────────────────────────────────────
+FROM node:20-alpine AS build
+WORKDIR /repo
+
+RUN corepack enable
+
+COPY --from=deps /repo/node_modules ./node_modules
+COPY --from=deps /repo/apps/api/node_modules ./apps/api/node_modules
 COPY . .
 
-# Install all dependencies
-RUN pnpm install --frozen-lockfile --offline
-
-# =============================================
-# Build stage
-# =============================================
-FROM base AS builder
-
-# Set working directory to API
-WORKDIR /app/apps/api
-
-# Generate Prisma client
-RUN pnpm prisma generate
-
-# Build the application
+WORKDIR /repo/apps/api
+RUN pnpm db:generate
 RUN pnpm build
 
-# =============================================
-# Production stage
-# =============================================
-FROM node:18-alpine AS production
+# Drop dev dependencies from node_modules so the runner stage gets a
+# slim production tree.
+RUN pnpm prune --prod
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# ─── runner stage ──────────────────────────────────────────────────────────
+FROM node:20-alpine AS runner
+WORKDIR /repo/apps/api
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nestjs -u 1001
+ENV NODE_ENV=production \
+    API_PORT=3001
 
-# Create app directory
-WORKDIR /app
+RUN addgroup -S nodejs && adduser -S nest -G nodejs
 
-# Install pnpm
-RUN npm install -g pnpm
+# Copy compiled JS + production node_modules + Prisma generated client
+COPY --from=build --chown=nest:nodejs /repo/apps/api/dist ./dist
+COPY --from=build --chown=nest:nodejs /repo/apps/api/node_modules ./node_modules
+COPY --from=build --chown=nest:nodejs /repo/apps/api/prisma ./prisma
+COPY --from=build --chown=nest:nodejs /repo/apps/api/package.json ./
 
-# Copy package files
-COPY --chown=nestjs:nodejs package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY --chown=nestjs:nodejs apps/api/package.json ./apps/api/
+USER nest
 
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod --ignore-scripts
-
-# Copy built application
-COPY --from=builder --chown=nestjs:nodejs /app/apps/api/dist ./apps/api/dist
-COPY --from=builder --chown=nestjs:nodejs /app/apps/api/prisma ./apps/api/prisma
-COPY --from=builder --chown=nestjs:nodejs /app/node_modules/.pnpm ./node_modules/.pnpm
-COPY --from=builder --chown=nestjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-
-# Copy environment files
-COPY --chown=nestjs:nodejs .env.production.template ./
-
-# Set environment
-ENV NODE_ENV=production
-ENV PORT=3001
-
-# Create directories for logs and temp files
-RUN mkdir -p /app/logs /app/tmp && chown -R nestjs:nodejs /app/logs /app/tmp
-
-# Switch to non-root user
-USER nestjs
-
-# Expose port
 EXPOSE 3001
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "const http=require('http');const req=http.request({hostname:'localhost',port:3001,path:'/health',timeout:2000},res=>{process.exit(res.statusCode===200?0:1)});req.on('error',()=>process.exit(1));req.end();"
+# Healthcheck hits the same /health endpoint the app exposes; Docker
+# marks the container unhealthy if it returns non-2xx for 30s.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD node -e "fetch('http://localhost:'+(process.env.API_PORT||3001)+'/api/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"
 
-# Start application with dumb-init for proper signal handling
-ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "apps/api/dist/main.js"]
+CMD ["node", "dist/main.js"]

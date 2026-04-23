@@ -4,6 +4,12 @@ import { QueueService, JobType } from '../services/queue.service';
 import { PrismaService } from '../services/prisma.service';
 import { BaseWorker } from './worker.base';
 import { chunkByAst, isAstSupportedLanguage } from './code-chunker';
+import {
+  chunkPlainText,
+  estimateTokenCount,
+  generateContentHash,
+  isCodeLanguage,
+} from './chunking-helpers';
 
 // Content Chunking Worker
 @Injectable()
@@ -62,11 +68,11 @@ export class ContentChunkingWorker extends BaseWorker {
               contentId,
               sequence: index,
               chunkText: chunk.text,
-              chunkHash: this.generateContentHash(chunk.text),
+              chunkHash: generateContentHash(chunk.text),
               startChar: chunk.startPosition,
               endChar: chunk.endPosition,
               embeddingStatus: 'PENDING',
-              tokenCount: this.estimateTokenCount(chunk.text),
+              tokenCount: estimateTokenCount(chunk.text),
             },
           });
           chunksCreated++;
@@ -140,7 +146,7 @@ export class ContentChunkingWorker extends BaseWorker {
       case 'REPOSITORY_FILE':
         return this.chunkRepositoryFile(content, language, chunkSize, overlap);
       default:
-        return this.chunkPlainText(content, chunkSize, overlap);
+        return chunkPlainText(content, chunkSize, overlap);
     }
   }
 
@@ -240,10 +246,10 @@ export class ContentChunkingWorker extends BaseWorker {
     if (language === 'markdown') {
       return this.chunkMarkdown(content, chunkSize, overlap);
     }
-    if (this.isCodeLanguage(language)) {
+    if (isCodeLanguage(language)) {
       return this.chunkCode(content, chunkSize, overlap);
     }
-    return this.chunkPlainText(content, chunkSize, overlap);
+    return chunkPlainText(content, chunkSize, overlap);
   }
 
   private splitByCodeBlocks(content: string): Array<{
@@ -434,7 +440,7 @@ export class ContentChunkingWorker extends BaseWorker {
           });
         } else {
           // Split large sections
-          const subChunks = this.chunkPlainText(
+          const subChunks = chunkPlainText(
             trimmedSection,
             chunkSize,
             overlap,
@@ -453,7 +459,7 @@ export class ContentChunkingWorker extends BaseWorker {
 
     return chunks.length > 0
       ? chunks
-      : this.chunkPlainText(content, chunkSize, overlap);
+      : chunkPlainText(content, chunkSize, overlap);
   }
 
   private chunkCode(
@@ -468,86 +474,7 @@ export class ContentChunkingWorker extends BaseWorker {
     return this.chunkCodeBlock(content, chunkSize, overlap);
   }
 
-  private chunkPlainText(
-    content: string,
-    chunkSize: number,
-    overlap: number,
-  ): Array<{
-    text: string;
-    startPosition: number;
-    endPosition: number;
-  }> {
-    const chunks: Array<{
-      text: string;
-      startPosition: number;
-      endPosition: number;
-    }> = [];
-
-    let currentPosition = 0;
-
-    while (currentPosition < content.length) {
-      const endPosition = Math.min(currentPosition + chunkSize, content.length);
-      let chunkText = content.substring(currentPosition, endPosition);
-
-      // Try to break at word boundaries
-      if (endPosition < content.length) {
-        const lastSpaceIndex = chunkText.lastIndexOf(' ');
-        if (lastSpaceIndex > chunkSize * 0.8) {
-          chunkText = chunkText.substring(0, lastSpaceIndex);
-        }
-      }
-
-      chunks.push({
-        text: chunkText.trim(),
-        startPosition: currentPosition,
-        endPosition: currentPosition + chunkText.length,
-      });
-
-      // Advance by chunk length minus overlap, but always by at least
-      // one character so we can't loop forever when chunkText.length
-      // happens to equal overlap (which used to hang the worker on
-      // any plain-text content where the final tail was overlap-sized).
-      const advance = Math.max(1, chunkText.length - overlap);
-      currentPosition += advance;
-    }
-
-    return chunks.filter((chunk) => chunk.text.length > 0);
-  }
-
-  private isCodeLanguage(language: string): boolean {
-    const codeLanguages = [
-      'javascript',
-      'typescript',
-      'python',
-      'java',
-      'go',
-      'rust',
-      'c',
-      'cpp',
-      'csharp',
-      'php',
-      'ruby',
-      'scala',
-      'kotlin',
-      'swift',
-    ];
-    return codeLanguages.includes(language.toLowerCase());
-  }
-
-  private generateContentHash(content: string): string {
-    // Simple hash function for content deduplication
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash; // Convert to 32bit integer
-    }
-    return Math.abs(hash).toString(16);
-  }
-
-  private estimateTokenCount(text: string): number {
-    // Rough estimate: ~4 characters per token for English text
-    // This is approximate - for production you'd use tiktoken or similar
-    return Math.ceil(text.length / 4);
-  }
+  // chunkPlainText / isCodeLanguage / generateContentHash /
+  // estimateTokenCount were duplicated identically in github-processing
+  // and lifted into ./chunking-helpers.ts.
 }

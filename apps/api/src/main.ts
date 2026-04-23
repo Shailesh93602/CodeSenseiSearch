@@ -6,6 +6,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger as PinoLogger } from 'nestjs-pino';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { loadEnv } from './config/env';
 import { SentryExceptionFilter } from './sentry-exception.filter';
@@ -25,6 +26,30 @@ async function bootstrap() {
   // Wire pino as the Nest logger — every Logger.log() call now emits
   // a structured JSON record (or coloured pretty-print in dev).
   app.useLogger(app.get(PinoLogger));
+
+  // Helmet — sane default security headers (X-Content-Type-Options,
+  // Referrer-Policy, Strict-Transport-Security, X-DNS-Prefetch-Control,
+  // etc.). The default Content-Security-Policy is loosened slightly so
+  // Swagger's UI keeps working on /api/docs (it loads its own bundles
+  // and inline scripts); production-with-no-Swagger gets the strict
+  // default automatically because the docs route isn't mounted.
+  app.use(
+    helmet({
+      contentSecurityPolicy:
+        process.env.NODE_ENV === 'production' &&
+        process.env.SWAGGER_ENABLED !== 'true'
+          ? undefined
+          : {
+              directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'", "'unsafe-inline'"],
+                styleSrc: ["'self'", "'unsafe-inline'"],
+                imgSrc: ["'self'", 'data:'],
+              },
+            },
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
 
   // Enable CORS for frontend communication
   app.enableCors({

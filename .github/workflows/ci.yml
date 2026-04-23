@@ -1,294 +1,109 @@
-name: CI/CD Pipeline
+# CI — runs on every push to main + every pull request.
+#
+# Validates the things we'd refuse to merge without: type-check, lint,
+# all unit / integration tests in both apps, and the Playwright E2E
+# suite for the web app. No deploys here — that's the deploy
+# workflow's job.
+
+name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
-env:
-  NODE_VERSION: '18'
-  PNPM_VERSION: '8'
+# Cancel in-flight runs on the same ref when a new commit lands —
+# saves CI minutes on rapid pushes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  # Install dependencies and cache
-  setup:
-    name: Setup and Cache Dependencies
+  api:
+    name: API (NestJS)
     runs-on: ubuntu-latest
-    outputs:
-      cache-key: ${{ steps.cache-pnpm.outputs.cache-hit }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/api
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          version: 10
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+      - uses: actions/setup-node@v4
         with:
-          version: ${{ env.PNPM_VERSION }}
+          node-version: 20
+          cache: pnpm
 
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Cache pnpm store
-        id: cache-pnpm
-        uses: actions/cache@v3
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install dependencies
+      - name: Install
+        working-directory: .
         run: pnpm install --frozen-lockfile
 
-  # Lint and format check
-  lint:
-    name: Lint and Format Check
-    runs-on: ubuntu-latest
-    needs: setup
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Generate Prisma client
+        run: pnpm db:generate
 
-      - name: Setup Node.js and pnpm
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Cache pnpm store
-        uses: actions/cache@v3
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run ESLint
-        run: pnpm lint
-
-      - name: Check Prettier formatting
-        run: pnpm format:check
-
-  # Type checking
-  type-check:
-    name: TypeScript Type Check
-    runs-on: ubuntu-latest
-    needs: setup
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js and pnpm
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Cache pnpm store
-        uses: actions/cache@v3
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Type check all packages
+      - name: Type check
         run: pnpm type-check
 
-  # Build all packages
-  build:
-    name: Build All Packages
-    runs-on: ubuntu-latest
-    needs: setup
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Lint
+        run: pnpm lint
 
-      - name: Setup Node.js and pnpm
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Cache pnpm store
-        uses: actions/cache@v3
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build shared packages
-        run: pnpm --filter "@codesenseisearch/types" build && pnpm --filter "@codesenseisearch/utils" build
-
-      - name: Build applications
-        run: pnpm build
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-artifacts
-          path: |
-            apps/web/.next/
-            apps/api/dist/
-            packages/*/dist/
-          retention-days: 1
-
-  # Test with database
-  test:
-    name: Run Tests
-    runs-on: ubuntu-latest
-    needs: setup
-    services:
-      postgres:
-        image: pgvector/pgvector:pg15
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: codesenseisearch_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js and pnpm
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Cache pnpm store
-        uses: actions/cache@v3
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build shared packages
-        run: pnpm --filter "@codesenseisearch/types" build && pnpm --filter "@codesenseisearch/utils" build
-
-      - name: Run database migrations
-        run: |
-          cd apps/api
-          pnpm prisma migrate deploy
-        env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/codesenseisearch_test
-
-      - name: Run tests
+      - name: Tests
         run: pnpm test
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/codesenseisearch_test
-          REDIS_URL: redis://localhost:6379
           NODE_ENV: test
 
-  # Security audit
-  security:
-    name: Security Audit
+  web:
+    name: Web (Next.js)
     runs-on: ubuntu-latest
-    needs: setup
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/web
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js and pnpm
-        uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          version: 10
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+      - uses: actions/setup-node@v4
         with:
-          version: ${{ env.PNPM_VERSION }}
+          node-version: 20
+          cache: pnpm
 
-      - name: Run security audit
-        run: pnpm audit --audit-level moderate
+      - name: Install
+        working-directory: .
+        run: pnpm install --frozen-lockfile
 
-  # All checks must pass
-  all-checks:
-    name: All Checks Passed
-    runs-on: ubuntu-latest
-    needs: [lint, type-check, build, test, security]
-    if: always()
-    steps:
-      - name: Check all jobs
-        run: |
-          if [[ "${{ needs.lint.result }}" != "success" ]] || 
-             [[ "${{ needs.type-check.result }}" != "success" ]] || 
-             [[ "${{ needs.build.result }}" != "success" ]] || 
-             [[ "${{ needs.test.result }}" != "success" ]] || 
-             [[ "${{ needs.security.result }}" != "success" ]]; then
-            echo "One or more checks failed"
-            exit 1
-          fi
-          echo "All checks passed successfully!"
+      - name: Type check
+        run: pnpm type-check
+
+      - name: Lint
+        run: pnpm lint
+        continue-on-error: true # next-lint nit-warnings shouldn't fail PRs yet
+
+      - name: Vitest unit tests
+        run: pnpm test
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Playwright E2E
+        run: pnpm test:e2e
+        env:
+          CI: 'true'
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 7

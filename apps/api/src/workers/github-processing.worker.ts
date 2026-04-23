@@ -4,6 +4,11 @@ import { QueueService, JobType } from '../services/queue.service';
 import { GitHubApiService } from '../services/github-api.service';
 import { PrismaService } from '../services/prisma.service';
 import { BaseWorker } from './worker.base';
+import {
+  chunkPlainText,
+  generateContentHash,
+  isCodeLanguage,
+} from './chunking-helpers';
 
 // GitHub Processing Worker
 @Injectable()
@@ -88,7 +93,7 @@ export class GitHubProcessingWorker extends BaseWorker {
           fileName,
           fileSize: size,
           downloadUrl,
-          contentHash: this.generateContentHash(content),
+          contentHash: generateContentHash(content),
           processedAt: new Date(),
         },
       });
@@ -104,7 +109,7 @@ export class GitHubProcessingWorker extends BaseWorker {
               contentId: contentRecord.id,
               sequence: index,
               chunkText: chunk.text,
-              chunkHash: this.generateContentHash(chunk.text),
+              chunkHash: generateContentHash(chunk.text),
               startChar: chunk.startPosition,
               endChar: chunk.endPosition,
               embeddingStatus: 'PENDING',
@@ -157,17 +162,8 @@ export class GitHubProcessingWorker extends BaseWorker {
     return content.split(/\s+/).filter((word) => word.length > 0).length;
   }
 
-  private generateContentHash(content: string): string {
-    // Generate a simple hash for content deduplication
-    // In production, you'd use a proper hashing library like crypto
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash; // Convert to 32bit integer
-    }
-    return Math.abs(hash).toString(16);
-  }
+  // generateContentHash now lives in ./chunking-helpers and is used
+  // via the named import at the top of this file.
 
   private createContentChunks(
     content: string,
@@ -178,14 +174,20 @@ export class GitHubProcessingWorker extends BaseWorker {
     startPosition: number;
     endPosition: number;
   }> {
-    // Different chunking strategies based on content type
+    // Hard-coded chunk sizes used by the legacy GitHub-processing path.
+    // ContentChunkingWorker is the modern caller and passes these
+    // explicitly; this worker is kept for the file-discovery → first-pass
+    // chunking flow before the AST chunker re-processes code files.
+    const CHUNK_SIZE = 1000;
+    const OVERLAP = 100;
+
     if (language === 'markdown') {
       return this.chunkMarkdown(content);
-    } else if (this.isCodeLanguage(language)) {
-      return this.chunkCode(content);
-    } else {
-      return this.chunkPlainText(content);
     }
+    if (isCodeLanguage(language)) {
+      return this.chunkCode(content);
+    }
+    return chunkPlainText(content, CHUNK_SIZE, OVERLAP);
   }
 
   private chunkMarkdown(content: string): Array<{
@@ -217,7 +219,7 @@ export class GitHubProcessingWorker extends BaseWorker {
       }
     }
 
-    return chunks.length > 0 ? chunks : this.chunkPlainText(content);
+    return chunks.length > 0 ? chunks : chunkPlainText(content, 1000, 100);
   }
 
   private chunkCode(content: string): Array<{
@@ -273,69 +275,9 @@ export class GitHubProcessingWorker extends BaseWorker {
     return chunks;
   }
 
-  private chunkPlainText(content: string): Array<{
-    text: string;
-    startPosition: number;
-    endPosition: number;
-  }> {
-    const chunks: Array<{
-      text: string;
-      startPosition: number;
-      endPosition: number;
-    }> = [];
-    const maxChunkSize = 1000;
-    const overlapSize = 100;
-
-    let currentPosition = 0;
-
-    while (currentPosition < content.length) {
-      const endPosition = Math.min(
-        currentPosition + maxChunkSize,
-        content.length,
-      );
-      let chunkText = content.substring(currentPosition, endPosition);
-
-      // Try to break at word boundaries
-      if (endPosition < content.length) {
-        const lastSpaceIndex = chunkText.lastIndexOf(' ');
-        if (lastSpaceIndex > maxChunkSize * 0.8) {
-          // Only if we're not cutting too much
-          chunkText = chunkText.substring(0, lastSpaceIndex);
-        }
-      }
-
-      chunks.push({
-        text: chunkText.trim(),
-        startPosition: currentPosition,
-        endPosition: currentPosition + chunkText.length,
-      });
-
-      // Always advance by at least one char so we can't loop forever
-      // when chunkText.length happens to equal overlapSize.
-      const advance = Math.max(1, chunkText.length - overlapSize);
-      currentPosition += advance;
-    }
-
-    return chunks;
-  }
-
-  private isCodeLanguage(language: string): boolean {
-    const codeLanguages = [
-      'javascript',
-      'typescript',
-      'python',
-      'java',
-      'go',
-      'rust',
-      'c',
-      'cpp',
-      'csharp',
-      'php',
-      'ruby',
-      'scala',
-      'kotlin',
-      'swift',
-    ];
-    return codeLanguages.includes(language.toLowerCase());
-  }
+  // chunkPlainText + isCodeLanguage moved to ./chunking-helpers and
+  // imported at the top of this file. (chunkMarkdown + chunkCode stay
+  // here because their signatures and bodies differ from the
+  // ContentChunkingWorker versions — section-split-only and
+  // line-aware-no-overlap, respectively.)
 }
