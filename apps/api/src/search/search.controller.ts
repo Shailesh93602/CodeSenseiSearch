@@ -7,17 +7,23 @@ import {
   Param,
   Logger,
 } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SearchService, SearchOptions } from '../services/search.service';
 
+@ApiTags('search')
 @Controller('search')
 export class SearchController {
   private readonly logger = new Logger(SearchController.name);
 
   constructor(private searchService: SearchService) {}
 
-  /**
-   * Semantic search endpoint
-   */
+  @ApiOperation({
+    summary: 'Vector-only semantic search',
+    description:
+      'Embeds the query with Gemini text-embedding-004 and runs a cosine ' +
+      'similarity search over content_chunks.embedding (pgvector). Use this ' +
+      'when you want pure semantic matches and no keyword bias.',
+  })
   @Post('semantic')
   async semanticSearch(
     @Body() body: { query: string; options?: SearchOptions },
@@ -47,9 +53,12 @@ export class SearchController {
     }
   }
 
-  /**
-   * Text search endpoint
-   */
+  @ApiOperation({
+    summary: 'Postgres full-text search',
+    description:
+      'Runs Postgres tsvector matching over content_chunks.chunkText. Best for ' +
+      'literal symbol / keyword queries where you know the exact term.',
+  })
   @Post('text')
   async textSearch(@Body() body: { query: string; options?: SearchOptions }) {
     const { query, options = {} } = body;
@@ -82,9 +91,13 @@ export class SearchController {
     }
   }
 
-  /**
-   * Hybrid search endpoint
-   */
+  @ApiOperation({
+    summary: 'Hybrid (vector + full-text) search with reranking',
+    description:
+      'Recommended default. Combines semantic and full-text scores ' +
+      '(0.6 * vector + 0.4 * text by default), reranks the top-K results, ' +
+      'and returns chunks with file path + line range so a UI can deep-link.',
+  })
   @Post('hybrid')
   async hybridSearch(@Body() body: { query: string; options?: SearchOptions }) {
     const { query, options = {} } = body;
@@ -112,9 +125,9 @@ export class SearchController {
     }
   }
 
-  /**
-   * Repository-specific search
-   */
+  @ApiOperation({
+    summary: 'Hybrid search scoped to a single repository',
+  })
   @Post('repository/:repositoryId')
   async searchInRepository(
     @Param('repositoryId') repositoryId: string,
@@ -150,9 +163,9 @@ export class SearchController {
     }
   }
 
-  /**
-   * Question search endpoint
-   */
+  @ApiOperation({
+    summary: 'Hybrid search restricted to StackOverflow questions',
+  })
   @Post('questions')
   async searchQuestions(
     @Body() body: { query: string; options?: Omit<SearchOptions, 'source'> },
@@ -182,9 +195,12 @@ export class SearchController {
     }
   }
 
-  /**
-   * Get search suggestions
-   */
+  @ApiOperation({
+    summary: 'Autocomplete suggestions for the search bar',
+    description:
+      'Pass `q` as a partial query (≥2 chars). Returns frequently-seen ' +
+      'completions; safe to call on every keystroke (debounced client-side).',
+  })
   @Get('suggestions')
   async getSearchSuggestions(@Query('q') partialQuery: string) {
     if (!partialQuery || partialQuery.trim().length < 2) {
@@ -217,9 +233,12 @@ export class SearchController {
     }
   }
 
-  /**
-   * Get search statistics
-   */
+  @ApiOperation({
+    summary: 'Aggregate search-corpus statistics',
+    description:
+      'Counts of indexed repositories, questions, content chunks, and ' +
+      'embedding-status breakdown. Useful for the admin dashboard.',
+  })
   @Get('stats')
   async getSearchStats() {
     try {
@@ -238,9 +257,9 @@ export class SearchController {
     }
   }
 
-  /**
-   * Quick search endpoint (GET for simple queries)
-   */
+  @ApiOperation({
+    summary: 'Hybrid search via GET (URL-shareable / linkable)',
+  })
   @Get('quick')
   async quickSearch(
     @Query('q') query: string,

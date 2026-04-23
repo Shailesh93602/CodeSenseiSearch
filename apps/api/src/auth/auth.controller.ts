@@ -11,39 +11,94 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import type { Response } from 'express';
 import { AuthService, AuthUser } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GitHubAuthGuard } from './guards/github-auth.guard';
 
-// DTOs for request validation
+// DTOs for request validation. The global ValidationPipe in main.ts is
+// configured with whitelist + forbidNonWhitelisted, so unknown fields
+// here will reject the request before any handler runs. transform: true
+// also coerces string types where appropriate.
+
+const STRONG_PASSWORD_PATTERN =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
+
 export class LoginDto {
-  email: string;
-  password: string;
+  @IsEmail({}, { message: 'email must be a valid email address' })
+  @MaxLength(254)
+  email!: string;
+
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  password!: string;
 }
 
 export class RegisterDto {
-  email: string;
-  password: string;
-  name: string;
+  @IsEmail({}, { message: 'email must be a valid email address' })
+  @MaxLength(254)
+  email!: string;
+
+  @IsString()
+  @MinLength(8, { message: 'password must be at least 8 characters' })
+  @MaxLength(128)
+  @Matches(STRONG_PASSWORD_PATTERN, {
+    message:
+      'password must contain at least one uppercase letter, one lowercase letter, and one digit',
+  })
+  password!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(1)
+  @MaxLength(100)
+  name!: string;
 }
 
 export class ChangePasswordDto {
-  currentPassword: string;
-  newPassword: string;
+  @IsString()
+  @IsNotEmpty()
+  currentPassword!: string;
+
+  @IsString()
+  @MinLength(8, { message: 'newPassword must be at least 8 characters' })
+  @MaxLength(128)
+  @Matches(STRONG_PASSWORD_PATTERN, {
+    message:
+      'newPassword must contain at least one uppercase letter, one lowercase letter, and one digit',
+  })
+  newPassword!: string;
 }
 
 export interface AuthRequest extends Request {
   user: AuthUser;
 }
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  /**
-   * Register a new user account
-   */
+  @ApiOperation({ summary: 'Register a new user account' })
+  @ApiResponse({ status: 201, description: 'User created' })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  @ApiResponse({ status: 409, description: 'Email already in use' })
+  @ApiResponse({ status: 429, description: 'Rate limit (5/min) exceeded' })
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -60,9 +115,10 @@ export class AuthController {
     };
   }
 
-  /**
-   * Login with email and password
-   */
+  @ApiOperation({ summary: 'Login with email and password' })
+  @ApiResponse({ status: 200, description: 'Login successful — returns access + refresh tokens' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 429, description: 'Rate limit (10/min) exceeded' })
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -118,9 +174,10 @@ export class AuthController {
     return { message: 'Logout successful' };
   }
 
-  /**
-   * Get current user profile
-   */
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: 'Authenticated user profile' })
+  @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   @Get('profile')
   @UseGuards(JwtAuthGuard)
   getProfile(@Request() req: AuthRequest) {
@@ -136,9 +193,10 @@ export class AuthController {
     };
   }
 
-  /**
-   * Change user password
-   */
+  @ApiOperation({ summary: 'Change the authenticated user password' })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: 'Password updated' })
+  @ApiResponse({ status: 401, description: 'Invalid current password or token' })
   @Post('change-password')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)

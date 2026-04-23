@@ -1,8 +1,11 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrismaService } from '../services/prisma.service';
 import { QueueService } from '../services/queue.service';
 
+@ApiTags('admin')
+@ApiBearerAuth()
 @Controller('admin')
 @UseGuards(JwtAuthGuard)
 export class AdminController {
@@ -11,6 +14,13 @@ export class AdminController {
     private readonly queueService: QueueService,
   ) {}
 
+  @ApiOperation({
+    summary: 'Aggregate dashboard counters',
+    description:
+      'Returns counts of repositories, questions, content, chunks, ' +
+      'pending/failed processing, plus the 5 most recent ingested ' +
+      'items per source. Drives the admin home page.',
+  })
   @Get('dashboard')
   async getDashboard() {
     try {
@@ -127,6 +137,13 @@ export class AdminController {
     }
   }
 
+  @ApiOperation({
+    summary: 'Database + queue health probes',
+    description:
+      'Pings Postgres with `SELECT 1` and queries the github-discovery, ' +
+      'github-processing, and content-chunking BullMQ queues. Returns ' +
+      'overallHealth: "healthy" | "degraded".',
+  })
   @Get('system-health')
   async getSystemHealth() {
     const checks: Array<{
@@ -194,6 +211,13 @@ export class AdminController {
     };
   }
 
+  @ApiOperation({
+    summary: 'Last 24h ingestion + processing throughput',
+    description:
+      'Counts of repositories, questions, content, and chunks created ' +
+      'in the past 24 hours, plus a status-distribution histogram so ' +
+      'failed pipelines surface immediately.',
+  })
   @Get('processing-stats')
   async getProcessingStats() {
     try {
