@@ -122,7 +122,12 @@
     },
     "moduleNameMapping": {
       "^@/(.*)$": "<rootDir>/$1"
-    }
+    },
+    "setupFilesAfterEnv": [
+      "<rootDir>/../test/setup.ts"
+    ],
+    "forceExit": true,
+    "detectOpenHandles": false
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
