@@ -22,9 +22,6 @@ import { BaseWorker } from './worker.base';
  */
 @Injectable()
 export class EmbeddingGenerationWorker extends BaseWorker {
-  private static readonly MAX_RETRIES = 3;
-  private static readonly INITIAL_BACKOFF_MS = 500;
-
   constructor(
     queueService: QueueService,
     private readonly prismaService: PrismaService,
@@ -86,7 +83,9 @@ export class EmbeddingGenerationWorker extends BaseWorker {
 
     for (const chunk of chunks) {
       try {
-        const result = await this.embedWithRetry(chunk.chunkText);
+        // GeminiService handles transient-error backoff internally now;
+        // we just propagate any failure so the chunk gets marked FAILED.
+        const result = await this.geminiService.generateEmbedding(chunk.chunkText);
         await this.vectorService.storeEmbedding(chunk.id, result.embedding);
 
         await this.prismaService.contentChunk.update({
@@ -128,43 +127,4 @@ export class EmbeddingGenerationWorker extends BaseWorker {
     };
   }
 
-  /**
-   * geminiService.generateEmbedding with exponential backoff. Gemini's
-   * transient errors (5xx, ECONNRESET, quota-ish 429s) are retry-safe;
-   * 4xx on input shape is not. The SDK doesn't give us clean status codes,
-   * so we match on message.
-   */
-  private async embedWithRetry(content: string) {
-    let lastError: unknown;
-
-    for (
-      let attempt = 0;
-      attempt < EmbeddingGenerationWorker.MAX_RETRIES;
-      attempt++
-    ) {
-      try {
-        return await this.geminiService.generateEmbedding(content);
-      } catch (error) {
-        lastError = error;
-        const message =
-          error instanceof Error ? error.message.toLowerCase() : '';
-        const retryable =
-          message.includes('rate') ||
-          message.includes('timeout') ||
-          message.includes('econnreset') ||
-          message.includes('5');
-
-        if (!retryable) break;
-
-        const delay =
-          EmbeddingGenerationWorker.INITIAL_BACKOFF_MS * Math.pow(2, attempt);
-        this.logger.warn(
-          `Gemini transient error on attempt ${attempt + 1}/${EmbeddingGenerationWorker.MAX_RETRIES}, retrying in ${delay}ms: ${message}`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-
-    throw lastError;
-  }
 }

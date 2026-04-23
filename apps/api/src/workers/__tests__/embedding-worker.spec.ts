@@ -185,28 +185,26 @@ describe('EmbeddingGenerationWorker', () => {
     );
   });
 
-  it('retries on transient errors and succeeds on the second attempt', async () => {
+  it('marks chunk FAILED when Gemini propagates an exhausted-retry error', async () => {
+    // Retry behaviour now lives inside GeminiService.withRetry — the
+    // worker just sees the final error after the service's three
+    // attempts. From the worker's perspective: one call, one rejection,
+    // one FAILED chunk.
     const { worker, prismaService, geminiService } = buildWorker();
 
     (prismaService.contentChunk.findMany as jest.Mock).mockResolvedValue([
-      { id: 'c1', chunkText: 'retry me' },
+      { id: 'c1', chunkText: 'gave up' },
     ]);
-    (geminiService.generateEmbedding as jest.Mock)
-      .mockRejectedValueOnce(new Error('rate limit exceeded'))
-      .mockResolvedValueOnce({
-        content: 'retry me',
-        embedding: new Array(768).fill(0.3),
-        tokenCount: 3,
-        model: 'text-embedding-004',
-        timestamp: new Date(),
-      });
+    (geminiService.generateEmbedding as jest.Mock).mockRejectedValue(
+      new Error('rate limit exceeded after 3 attempts'),
+    );
 
     const result = await asInternals(worker).generateEmbeddings({
       contentChunkIds: ['c1'],
     });
 
-    expect(geminiService.generateEmbedding).toHaveBeenCalledTimes(2);
-    expect(result.embeddingsGenerated).toBe(1);
-    expect(result.failedChunks).toBe(0);
-  }, 10_000);
+    expect(geminiService.generateEmbedding).toHaveBeenCalledTimes(1);
+    expect(result.failedChunks).toBe(1);
+    expect(result.embeddingsGenerated).toBe(0);
+  });
 });

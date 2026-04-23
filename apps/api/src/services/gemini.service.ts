@@ -26,6 +26,12 @@ export class GeminiService {
   private embeddingModelInstance: any;
   private textModelInstance: any;
 
+  // Retry configuration. Lives on the service so the worker, the search
+  // service's query-embedding path, and any future caller all get the
+  // same backoff behaviour for free.
+  private static readonly MAX_RETRIES = 3;
+  private static readonly INITIAL_BACKOFF_MS = 500;
+
   constructor(private configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
 
@@ -48,38 +54,35 @@ export class GeminiService {
   }
 
   /**
-   * Generate embedding for a single text chunk
+   * Generate embedding for a single text chunk. Retries on transient
+   * errors (rate limit, timeout, 5xx) with exponential backoff.
    */
   async generateEmbedding(content: string): Promise<EmbeddingResult> {
     if (!this.genAI) {
       throw new Error('Gemini service not initialized. Check GEMINI_API_KEY.');
     }
 
-    try {
-      // Truncate content if too long
-      const truncatedContent = this.truncateContent(content);
+    const truncatedContent = this.truncateContent(content);
 
-      const result = await this.embeddingModelInstance.embedContent({
+    const result = await this.withRetry(() =>
+      this.embeddingModelInstance.embedContent({
         content: { parts: [{ text: truncatedContent }] },
         taskType: 'RETRIEVAL_DOCUMENT', // Optimized for search/retrieval
-      });
+      }),
+    );
 
-      const embedding = result.embedding.values;
-      const tokenCount = this.estimateTokenCount(truncatedContent);
+    const embedding = result.embedding.values;
+    const tokenCount = this.estimateTokenCount(truncatedContent);
 
-      this.logger.debug(`Generated embedding for ~${tokenCount} tokens`);
+    this.logger.debug(`Generated embedding for ~${tokenCount} tokens`);
 
-      return {
-        content: truncatedContent,
-        embedding,
-        tokenCount,
-        model: this.embeddingModel,
-        timestamp: new Date(),
-      };
-    } catch (error) {
-      this.logger.error(`Failed to generate embedding: ${error.message}`);
-      throw error;
-    }
+    return {
+      content: truncatedContent,
+      embedding,
+      tokenCount,
+      model: this.embeddingModel,
+      timestamp: new Date(),
+    };
   }
 
   /**
@@ -159,24 +162,23 @@ export class GeminiService {
   }
 
   /**
-   * Generate embedding for a search query
+   * Generate embedding for a search query. Same retry behaviour as
+   * generateEmbedding but uses the RETRIEVAL_QUERY task type so the
+   * vectors land on the query side of the cosine space.
    */
   async generateQueryEmbedding(query: string): Promise<number[]> {
     if (!this.genAI) {
       throw new Error('Gemini service not initialized. Check GEMINI_API_KEY.');
     }
 
-    try {
-      const result = await this.embeddingModelInstance.embedContent({
+    const result = await this.withRetry(() =>
+      this.embeddingModelInstance.embedContent({
         content: { parts: [{ text: query }] },
-        taskType: 'RETRIEVAL_QUERY', // Optimized for search queries
-      });
+        taskType: 'RETRIEVAL_QUERY',
+      }),
+    );
 
-      return result.embedding.values;
-    } catch (error) {
-      this.logger.error(`Failed to generate query embedding: ${error.message}`);
-      throw error;
-    }
+    return result.embedding.values;
   }
 
   /**
@@ -282,6 +284,45 @@ export class GeminiService {
    */
   isAvailable(): boolean {
     return !!this.genAI;
+  }
+
+  /**
+   * Run `op` with exponential backoff on transient Gemini errors —
+   * rate limit, timeout, ECONNRESET, 5xx. 4xx-shape errors fall
+   * through immediately because retrying them would just burn the
+   * quota for the same answer.
+   */
+  private async withRetry<T>(op: () => Promise<T>): Promise<T> {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < GeminiService.MAX_RETRIES; attempt++) {
+      try {
+        return await op();
+      } catch (error) {
+        lastError = error;
+        const message =
+          error instanceof Error ? error.message.toLowerCase() : '';
+        const retryable =
+          message.includes('rate') ||
+          message.includes('timeout') ||
+          message.includes('econnreset') ||
+          message.includes('5');
+
+        if (!retryable) {
+          this.logger.error(`Gemini call failed (non-retryable): ${message}`);
+          break;
+        }
+
+        const delay =
+          GeminiService.INITIAL_BACKOFF_MS * Math.pow(2, attempt);
+        this.logger.warn(
+          `Gemini transient error on attempt ${attempt + 1}/${GeminiService.MAX_RETRIES}, retrying in ${delay}ms: ${message}`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+
+    throw lastError;
   }
 
   /**
