@@ -62,6 +62,19 @@ const envSchema = z.object({
 
   // Optional toggles
   SWAGGER_ENABLED: truthyString.optional(),
+  LOG_LEVEL: z
+    .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
+    .optional(),
+
+  // Sentry — optional. When unset, instrument.ts skips Sentry.init()
+  // entirely so local dev runs without it.
+  SENTRY_DSN: z.url().optional(),
+  SENTRY_RELEASE: z.string().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce
+    .number()
+    .min(0)
+    .max(1)
+    .optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

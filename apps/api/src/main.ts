@@ -1,8 +1,14 @@
+// Sentry instrumentation MUST be imported before anything else so the
+// SDK can monkey-patch http / express / undici before they're loaded.
+import './instrument';
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { Logger as PinoLogger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { loadEnv } from './config/env';
+import { SentryExceptionFilter } from './sentry-exception.filter';
 
 async function bootstrap() {
   // Validate env BEFORE Nest constructs the module graph. If a required
@@ -15,7 +21,10 @@ async function bootstrap() {
     process.exit(1);
   }
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  // Wire pino as the Nest logger — every Logger.log() call now emits
+  // a structured JSON record (or coloured pretty-print in dev).
+  app.useLogger(app.get(PinoLogger));
 
   // Enable CORS for frontend communication
   app.enableCors({
@@ -34,6 +43,13 @@ async function bootstrap() {
 
   // Set global API prefix
   app.setGlobalPrefix('api');
+
+  // Sentry global exception capture. The filter only ships to Sentry
+  // when SENTRY_DSN was set at boot; otherwise instrument.ts skipped
+  // Sentry.init() and the filter's captureException calls are no-ops.
+  if (process.env.SENTRY_DSN) {
+    app.useGlobalFilters(new SentryExceptionFilter());
+  }
 
   // OpenAPI / Swagger documentation. Mounted at /api/docs and the raw
   // OpenAPI JSON at /api/docs-json. Skipped in production unless the
