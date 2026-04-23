@@ -21,7 +21,14 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# First positional arg is the env file (default .env.prod). Everything
+# after is passed through to `prisma migrate`. Defaults to `deploy`.
 ENV_FILE="${1:-.env.prod}"
+shift || true
+PRISMA_ARGS=("$@")
+if [ "${#PRISMA_ARGS[@]}" -eq 0 ]; then
+  PRISMA_ARGS=("deploy")
+fi
 
 if [ ! -f "$ENV_FILE" ]; then
   echo "Error: $ENV_FILE not found in apps/api/."
@@ -113,8 +120,8 @@ trap 'if [ "$RESTORE_ENV" = true ]; then mv .env.local-backup-during-migrate .en
 # Mask the password in the echo'd URL so it doesn't end up in any
 # CI log or scrollback.
 masked=$(echo "$DATABASE_URL" | sed -E 's#:[^:@]+@#:****@#')
-echo "→ Running prisma migrate deploy against:"
+echo "→ Running prisma migrate ${PRISMA_ARGS[*]} against:"
 echo "  $masked"
 echo
 
-pnpm exec prisma migrate deploy
+pnpm exec prisma migrate "${PRISMA_ARGS[@]}"
