@@ -10,6 +10,7 @@ import { TestModule } from './test/test.module';
 import { AdminModule } from './admin/admin.module';
 import { SearchModule } from './search/search.module';
 import { AuthModule } from './auth/auth.module';
+import { SeedModule } from './seed/seed.module';
 
 @Module({
   imports: [
@@ -81,6 +82,7 @@ import { AuthModule } from './auth/auth.module';
     TestModule,
     AdminModule,
     SearchModule,
+    SeedModule,
   ],
   controllers: [AppController],
   providers: [
