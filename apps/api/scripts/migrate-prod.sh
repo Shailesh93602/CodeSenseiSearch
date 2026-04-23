@@ -31,30 +31,45 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 # Parse KEY=VALUE lines safely. Skip comments, blanks, and any line
-# that doesn't match `^[A-Z_][A-Z0-9_]*=`. Strip surrounding single
-# or double quotes from the value. Export the variables so the
-# Prisma child process inherits them.
+# that doesn't match. Tolerates:
+#   - leading whitespace (copy-pasted indented lines)
+#   - optional `export ` prefix (bash export syntax)
+#   - whitespace around the `=`
+#   - quoted or unquoted values
+#   - \r line endings (Windows / copy from a .docx)
+# Export the variables so the Prisma child process inherits them.
 line_num=0
+matched=0
 skipped=0
+matched_keys=()
 while IFS= read -r line || [ -n "$line" ]; do
   line_num=$((line_num + 1))
 
   # Strip trailing CR from Windows-style line endings.
   line="${line%$'\r'}"
 
+  # Trim leading whitespace.
+  line="${line#"${line%%[![:space:]]*}"}"
+
   # Skip blanks and comments.
   case "$line" in
     ''|'#'*) continue ;;
   esac
 
-  # Only accept KEY=VALUE where KEY is a valid env-var identifier.
-  if ! [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+  # Strip optional `export ` prefix.
+  if [[ "$line" == export[[:space:]]* ]]; then
+    line="${line#export}"
+    line="${line#"${line%%[![:space:]]*}"}"
+  fi
+
+  # Match KEY[space]*=[space]*VALUE where KEY is a valid identifier.
+  if [[ ! "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*(.*)$ ]]; then
     skipped=$((skipped + 1))
     continue
   fi
 
-  key="${line%%=*}"
-  value="${line#*=}"
+  key="${BASH_REMATCH[1]}"
+  value="${BASH_REMATCH[2]}"
 
   # Strip matched surrounding quotes.
   if [[ "$value" == \"*\" ]]; then
@@ -63,12 +78,20 @@ while IFS= read -r line || [ -n "$line" ]; do
     value="${value:1:${#value}-2}"
   fi
 
+  # Trim trailing whitespace on unquoted values (common when users paste
+  # tabulated `name  value` pairs — the trailing column becomes garbage
+  # suffix whitespace).
+  value="${value%"${value##*[![:space:]]}"}"
+
   # shellcheck disable=SC2163
   export "$key=$value"
+  matched=$((matched + 1))
+  matched_keys+=("$key")
 done < "$ENV_FILE"
 
-if [ "$skipped" -gt 0 ]; then
-  echo "ℹ  Skipped $skipped non-KEY=VALUE line(s) in $ENV_FILE"
+echo "ℹ  Parsed $ENV_FILE: matched=$matched skipped=$skipped"
+if [ "$matched" -gt 0 ]; then
+  echo "   Keys: ${matched_keys[*]}"
 fi
 
 if [ -z "${DATABASE_URL:-}" ] || [ -z "${DIRECT_URL:-}" ]; then
