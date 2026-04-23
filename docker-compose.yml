@@ -1,7 +1,10 @@
 services:
   # PostgreSQL with pgvector extension
   postgres:
-    image: postgres:15-alpine
+    # pgvector/pgvector — same Postgres 15 base, but with the pgvector
+    # extension pre-installed so apps/api/prisma/migrations that
+    # `CREATE EXTENSION vector` succeed on a fresh volume.
+    image: pgvector/pgvector:pg15
     container_name: codesenseisearch-postgres
     environment:
       POSTGRES_USER: codesenseisearch
@@ -61,6 +64,53 @@ services:
       - redis
     profiles:
       - admin # Only start with: docker-compose --profile admin up
+
+  # NestJS API. Built from the multi-stage Dockerfile in apps/api.
+  # Only starts when you opt in: `docker compose --profile app up`.
+  # Without that, only Postgres + Redis come up so you can run the API
+  # locally with `pnpm --filter api dev` and get hot reload.
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: codesenseisearch-api
+    environment:
+      NODE_ENV: production
+      API_PORT: 3001
+      DATABASE_URL: postgresql://codesenseisearch:devpassword@postgres:5432/codesenseisearch
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-please-set-32-chars-or-more-via-env}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3010}
+      LOG_LEVEL: info
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles:
+      - app
+    restart: unless-stopped
+
+  # Next.js web. Same opt-in profile.
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: codesenseisearch-web
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api}
+    ports:
+      - "3010:3000"
+    depends_on:
+      - api
+    profiles:
+      - app
+    restart: unless-stopped
 
 volumes:
   postgres_data:
