@@ -1,6 +1,7 @@
-/* eslint-disable @typescript-eslint/unbound-method --
-   Test file: jest mocks on object literals don't have a real `this`
-   binding to worry about. */
+/* eslint-disable @typescript-eslint/unbound-method, @typescript-eslint/require-await --
+   Test file: jest mocks return Promises by convention even when their
+   bodies are synchronous; unbound-method is irrelevant on mock
+   objects. */
 /**
  * Tests for ContentChunkingWorker.chunkContent.
  *
