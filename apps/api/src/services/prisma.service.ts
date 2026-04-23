@@ -4,7 +4,9 @@ import {
   OnModuleDestroy,
   Logger,
 } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+// Imports from the in-source generated path (see prisma/schema.prisma's
+// generator block for why we don't use the @prisma/client default).
+import { PrismaClient } from '../generated/prisma/client';
 
 /**
  * Prisma Database Service

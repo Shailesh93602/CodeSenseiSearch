@@ -1,4 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+// Pinned import path — see prisma/schema.prisma generator block for why.
+import { PrismaClient } from '../src/generated/prisma/client';
 
 const prisma = new PrismaClient();
 

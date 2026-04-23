@@ -4,6 +4,19 @@
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["postgresqlExtensions"]
+  // Generate INTO the source tree at a stable path. Default is
+  // `node_modules/.prisma/client`, which pnpm + monorepo + Vercel
+  // workspaces all conspire to scatter — the @prisma/client shim
+  // can't find the .prisma sibling on Vercel and TypeScript loses
+  // every model accessor. Writing into src/generated keeps it under
+  // the app's own filesystem so the build is fully self-contained.
+  output          = "../src/generated/prisma"
+
+  // Native: macOS local dev. rhel-openssl-3.0.x: Vercel + AWS Lambda
+  // x64 runtimes (Amazon Linux 2023 base image, Node 20). Without
+  // this, the function crashes at runtime with "PrismaClient could
+  // not locate the Query Engine for runtime rhel-openssl-3.0.x".
+  binaryTargets   = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {

@@ -97,17 +97,26 @@ export class QueueService {
   }
 
   private initializeRedis() {
-    const redisConfig = {
-      host: this.configService.get('REDIS_HOST', 'localhost'),
-      port: this.configService.get('REDIS_PORT', 6379),
+    const host = this.configService.get<string>('REDIS_HOST', 'localhost');
+    // Upstash + most managed Redis providers require TLS. Auto-enable when
+    // the host clearly isn't a local dev instance, or when REDIS_TLS=true.
+    const tlsEnvFlag = String(
+      this.configService.get('REDIS_TLS', '') ?? '',
+    ).toLowerCase();
+    const useTls =
+      tlsEnvFlag === 'true' ||
+      tlsEnvFlag === '1' ||
+      (host !== 'localhost' && host !== '127.0.0.1');
+
+    this.redis = new Redis({
+      host,
+      port: Number(this.configService.get('REDIS_PORT', 6379)),
       password: this.configService.get('REDIS_PASSWORD'),
-      db: this.configService.get('REDIS_DB', 0),
-      retryDelayOnFailover: 100,
+      db: Number(this.configService.get('REDIS_DB', 0)),
       maxRetriesPerRequest: null, // Required for BullMQ
       lazyConnect: true,
-    };
-
-    this.redis = new Redis(redisConfig);
+      ...(useTls ? { tls: {} } : {}),
+    });
 
     this.redis.on('connect', () => {
       this.logger.log('Connected to Redis');

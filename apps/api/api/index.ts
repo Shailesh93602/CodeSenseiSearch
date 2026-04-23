@@ -1,39 +1,43 @@
 /**
  * Vercel serverless entry for the NestJS API.
  *
- * Vercel discovers files under `api/` as serverless functions. This
- * one bootstraps the same Nest app `main.ts` builds, wraps it with
- * @vendia/serverless-express so AWS-Lambda-style request/response
- * objects from Vercel's runtime get adapted to Express, and caches
- * the handler across warm invocations so we only pay the bootstrap
- * cost on cold starts.
+ * Vercel functions receive native Node `http.IncomingMessage` /
+ * `http.ServerResponse` objects. Express handles those directly —
+ * no AWS-Lambda-style adapter shim required (the @vendia /
+ * serverless-express attempt failed with "Unable to determine event
+ * source" precisely because Vercel's request shape isn't a Lambda
+ * event). We bootstrap Nest once per cold start, grab the underlying
+ * Express instance, cache it across warm invocations, and forward
+ * the (req, res) pair to it.
  *
  * Trade-off vs always-on hosting: BullMQ workers don't run here
- * because there's no long-running process to listen on Redis queues.
- * Search / auth / admin HTTP routes work fine — they're synchronous.
- * Ingestion has to be triggered by something else (a Vercel cron, a
- * one-shot run from a laptop against the live DB, or a separate
- * always-on worker host). See DEPLOYMENT.md "Step 9 — Seed corpus".
+ * because there's no long-running process. Search / auth / admin
+ * HTTP routes work fine — they're synchronous request/response.
+ * Ingestion has to be triggered separately (a one-shot run from a
+ * laptop against the live DB, or a Vercel cron POSTing to a manual-
+ * trigger endpoint). See DEPLOYMENT.md "Step 9 — Seed corpus".
  */
 
 import 'reflect-metadata';
-import serverlessExpress from '@vendia/serverless-express';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createApp } from '../src/main';
 
-type SlsHandler = (req: unknown, res: unknown) => Promise<unknown>;
+type ExpressApp = (req: IncomingMessage, res: ServerResponse) => void;
 
-let cachedHandler: SlsHandler | undefined;
+let cachedApp: ExpressApp | undefined;
 
-async function getHandler(): Promise<SlsHandler> {
-  if (cachedHandler) return cachedHandler;
-  const app = await createApp();
-  await app.init();
-  const expressApp = app.getHttpAdapter().getInstance();
-  cachedHandler = serverlessExpress({ app: expressApp }) as SlsHandler;
-  return cachedHandler;
+async function getApp(): Promise<ExpressApp> {
+  if (cachedApp) return cachedApp;
+  const nest = await createApp();
+  await nest.init();
+  cachedApp = nest.getHttpAdapter().getInstance() as unknown as ExpressApp;
+  return cachedApp;
 }
 
-export default async function handler(req: unknown, res: unknown) {
-  const h = await getHandler();
-  return h(req, res);
+export default async function handler(
+  req: IncomingMessage,
+  res: ServerResponse,
+) {
+  const app = await getApp();
+  app(req, res);
 }
