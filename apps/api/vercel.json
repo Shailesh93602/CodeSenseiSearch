@@ -1,7 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
+  "framework": null,
   "buildCommand": "pnpm db:generate && pnpm build",
+  "outputDirectory": ".",
   "rewrites": [
     {
       "source": "/(.*)",

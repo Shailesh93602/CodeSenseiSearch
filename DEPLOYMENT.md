@@ -173,13 +173,17 @@ to the Express adapter Nest uses internally.
    curl https://YOUR-API-VERCEL-URL/api/health
    # Expected: { "status": "ok", "components": { "database": { "status": "up", ... } } }
    ```
-6. Apply migrations against the live Supabase DB. From your laptop:
+6. Apply migrations against the live Supabase DB — one command:
    ```bash
    cd ~/Desktop/Coding/CodeSenseiSearch/apps/api
-   DATABASE_URL='postgresql://...:6543/postgres?pgbouncer=true' \
-     DIRECT_URL='postgresql://...:5432/postgres' \
-     pnpm prisma migrate deploy
+   cp .env.prod.example .env.prod
+   # Open .env.prod, paste your Supabase DB password into the two URLs.
+   # The file is gitignored so the password stays local.
+   pnpm --filter api db:deploy:prod
    ```
+   The `db:deploy:prod` script loads `.env.prod` via dotenv-cli and
+   runs `prisma migrate deploy`. It's idempotent — safe to run again
+   if you add new migrations later.
 
 ---
 
