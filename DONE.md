@@ -4,6 +4,41 @@ Items move here from `TODO.md` as they ship. Most-recent at the top.
 
 ---
 
+## 2026-04-24 — Corpus expansion: 4 OSS batches (115 entries) — quality-bar lift
+
+- 4 sub-agents drafted batches 010–013 in parallel against shallow
+  clones in `/tmp/oss/` (vercel/next.js, prisma/prisma,
+  TanStack/query, taskforcesh/bullmq).
+- **Quality bar raised**: 250–450 word bodies (was 200–400), each
+  entry must include a non-obvious gotcha / trade-off the kind
+  only someone who's shipped with the library would know.
+- All 115 cited file paths verified to exist in source repos.
+- Batch 010 (TanStack Query, 30): notifyManager batching, gcTime
+  rename, AbortSignal + #abortSignalConsumed flag, mutation
+  scope.id FIFO, sync-storage retry-on-quota, dehydrate redaction
+  defaults, useSuspenseQuery 1s clamp, structural-sharing select,
+  HydrationBoundary new-vs-existing split.
+- Batch 011 (Next.js App Router, 30): unstable_cache stale-while-
+  revalidate, after() with cookies/headers gotcha, Edge adapter
+  tripwires, intercepting routes parser, ImageResponse Satori CSS
+  limits, "use cache" + cacheLife/cacheTag, NextRequest single-
+  consumer body, generateStaticParams + dynamicParams, server
+  actions encoding flavors.
+- Batch 012 (Prisma, 30): findUnique vs findFirst DataLoader
+  batching, $transaction maxWait/timeout/isolation, $extends
+  supersedes $use, computed fields via $extends.result, cursor vs
+  offset pagination, multi-schema, driver adapters (Neon/PlanetScale),
+  isWrite replica routing, savepoint nesting, SQL Commenter.
+- Batch 013 (BullMQ, 25): Worker concurrency vs node count,
+  removeOnComplete number vs object, sandboxed processors via
+  processFile, FlowProducer parent/child, atomic Lua scripts,
+  custom job IDs for idempotency, TLS to Upstash, v3→v4→v5 deltas.
+- Seed run: 5 chunked invocations, 115 new embeddings (+ 0 failures
+  after the synthetic-githubId INT4 fix already in place).
+- Verified live: 8/8 OSS-pattern queries return precise, attributed
+  hits (ensureQueryData → exact entry, sandboxed processor →
+  exact entry, draftMode cookies → exact entry, etc).
+
 ## 2026-04-24 — Corpus expansion: 8 personal-project batches (185 entries)
 
 - 4 sub-agents drafted batches 002–009 in parallel, each scanning

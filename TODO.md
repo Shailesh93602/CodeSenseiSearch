@@ -13,20 +13,26 @@ in [CORPUS-PLAN.md](./CORPUS-PLAN.md).
 
 ## A. Corpus expansion (the active work)
 
-Current totals: **230/2600 chunks** (15 docs + 215 GitHub).
+Current totals: **345/2600 chunks** (15 docs + 330 GitHub).
 
 | Source         | Target | Have | Next                                    |
 | -------------- | ------ | ---- | --------------------------------------- |
-| GitHub         | 1000   | 215  | OSS popular-repo batches (010–025)      |
+| GitHub         | 1000   | 330  | OSS batches 014–025 (TS types, async, Postgres, testing, Rust, Go, Python, k8s) |
 | Stack Overflow | 1000   |   0  | start after GitHub crosses ~500         |
 | Documentation  |  500   |  15  | extend gradually from owner-authored Q&A |
 | Blog           |  100   |   0  | quarterly cadence, link to portfolio blog |
 
-- [ ] 🟡 **OSS popular-repo batches (010–025).** ~25 batches × 30
-  entries = 750. Topics in CORPUS-PLAN.md: TypeScript types,
-  Next.js routing, async patterns, Prisma, Postgres, BullMQ,
-  testing, Rust, Go, Python, k8s, etc. Brings GitHub to 1000.
-  Use parallel agents (4–5 at a time) to keep authoring throughput up.
+- [ ] 🟡 **OSS batches 014–020.** Next 7 batches per CORPUS-PLAN
+  roadmap → ~+200 entries. Themes: TypeScript types, async patterns,
+  Postgres, testing, Rust, Go, Python. Use parallel agents
+  (4–5 at a time). Target: ~530/1000 GitHub by end of next session.
+- [ ] 🟡 **OSS batches 021–025.** Final 5 batches to close out
+  GitHub: k8s, devops, security, build tooling, DB internals.
+  → +150 entries → 680+/1000 GitHub.
+- [ ] 🟡 **More personal-project entries.** Each personal repo can
+  yield another 15-25 entries on patterns the first agent missed.
+  Plus: ContextQA-related work (chrome extensions, anything
+  publicly OK to attribute). +150 entries.
 - [ ] 🟡 **Stack Overflow batches (so-001 onwards).** Real
   questions under CC-BY-SA, with proper attribution (author +
   question id). Target 1000 across ~33 batches.
