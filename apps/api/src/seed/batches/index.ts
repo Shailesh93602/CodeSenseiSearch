@@ -21,6 +21,10 @@ import { BATCH as github010 } from './github-010-tanstack-query';
 import { BATCH as github011 } from './github-011-nextjs-app-router';
 import { BATCH as github012 } from './github-012-prisma-patterns';
 import { BATCH as github013 } from './github-013-bullmq-patterns';
+import { BATCH as github014 } from './github-014-zod-typescript';
+import { BATCH as github015 } from './github-015-async-patterns';
+import { BATCH as github016 } from './github-016-vitest-testing';
+import { BATCH as github017 } from './github-017-radix-primitives';
 
 export const ALL_BATCHES: ReadonlyArray<{ name: string; items: SeedItem[] }> = [
   { name: 'github-001-react-hooks', items: github001 },
@@ -36,6 +40,10 @@ export const ALL_BATCHES: ReadonlyArray<{ name: string; items: SeedItem[] }> = [
   { name: 'github-011-nextjs-app-router', items: github011 },
   { name: 'github-012-prisma-patterns', items: github012 },
   { name: 'github-013-bullmq-patterns', items: github013 },
+  { name: 'github-014-zod-typescript', items: github014 },
+  { name: 'github-015-async-patterns', items: github015 },
+  { name: 'github-016-vitest-testing', items: github016 },
+  { name: 'github-017-radix-primitives', items: github017 },
 ];
 
 /** Flattened item list for the seed service to iterate. */
