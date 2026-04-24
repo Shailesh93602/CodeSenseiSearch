@@ -1,23 +1,16 @@
 /**
- * The hand-curated demo corpus that ships with the deployed API so
- * `/search/hybrid` returns real results out of the box.
+ * Owner-authored documentation entries. The original 15 items that
+ * shipped with the first deploy. Marked as `DOCUMENTATION_PAGE`
+ * because they're hand-written, not scraped — the `url` points at
+ * the canonical reference for the topic but the body is the owner's
+ * own writing.
  *
- * These items are owner-authored Q&A — not scraped — so we don't owe
- * any source attribution beyond a `url` field that points at the
- * canonical reference for the topic. Edit / extend freely; the seed
- * route fingerprints by title+body so re-running picks up new items
- * without duplicating old ones.
+ * New batches go in `./batches/`; this file is the documentation
+ * baseline.
  */
-export interface SeedItem {
-  title: string;
-  body: string;
-  language?: string;
-  tags: string[];
-  url: string;
-  score: number;
-}
+import type { SeedItem } from './types';
 
-export const DEMO_CORPUS: SeedItem[] = [
+const RAW_DOCS_ENTRIES: Omit<SeedItem, 'contentType'>[] = [
   {
     title: 'How do React useEffect cleanup functions work?',
     body: `A useEffect cleanup runs on two occasions: before the effect fires again on the next render, and when the component unmounts. The pattern is:
@@ -309,3 +302,9 @@ Most teams settle on: use interactive rebase to produce a clean commit history I
     score: 278,
   },
 ];
+
+/** All docs entries with the contentType stamp added once. */
+export const DEMO_CORPUS: SeedItem[] = RAW_DOCS_ENTRIES.map((item) => ({
+  ...item,
+  contentType: 'DOCUMENTATION_PAGE',
+}));
