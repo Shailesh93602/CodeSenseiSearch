@@ -4,6 +4,40 @@ Items move here from `TODO.md` as they ship. Most-recent at the top.
 
 ---
 
+## 2026-04-24 — Corpus expansion: 4 more OSS batches (105 entries)
+
+- 4 sub-agents drafted batches 014–017 in parallel against fresh
+  shallow clones (`/tmp/oss/zod`, `/tmp/oss/p-queue`,
+  `/tmp/oss/vitest`, `/tmp/oss/radix-primitives`).
+- Same quality bar as wave 2: 250–450 word bodies, real source code
+  in fenced blocks, non-obvious gotcha per entry, all 105 file
+  paths verified to exist before integration.
+- Batch 014 (zod, 30): cached object shape, infer/input/output
+  phantom types, refine vs superRefine, discriminatedUnion O(1)
+  vs union O(n), brand nominal types, lazy recursive schemas,
+  ZodEffects single-class trick, ZodObject._cached perf,
+  errorMap precedence chain, regex lastIndex stateful defense.
+- Batch 015 (async, 25): p-queue concurrency gating pending count,
+  priority queue mechanics, fixed-window vs strict-token-bucket
+  rate limiting, AbortSignal queued-vs-running, tanstack-query's
+  no-jitter exponential backoff vs bullmq's jittered, withResolvers
+  ES2024, queueMicrotask vs setImmediate vs setTimeout(0) ordering.
+  Includes a correction: `throwOnTimeout` was REMOVED from p-queue
+  — agent caught the stale doc topic and rewrote the entry.
+- Batch 016 (vitest, 25): configDefaults inheritance, vi.mock AST
+  hoisting, vi.spyOn ESM Cannot-redefine-property gotcha,
+  forks vs threads vs vmThreads pool tradeoffs, sharding via SHA1
+  hash distribution, test.extend with file/worker scope, async
+  leak detection.
+- Batch 017 (radix, 25): Dialog FocusScope + RemoveScroll +
+  hideOthers stacking, Popper @floating-ui autoUpdate + size
+  middleware, Slot prop merging (handlers compose, className
+  concat), useControllableState dual-mode pattern, useFocusGuards
+  refcounted body-edge spans, composeRefs callback+object refs +
+  React 19 cleanup, Portal mounted-flag SSR dance.
+- Seed run: ~30s wall time across 4 chunked invocations. 9/9
+  smoke-test queries return precise, attributed hits.
+
 ## 2026-04-24 — Corpus expansion: 4 OSS batches (115 entries) — quality-bar lift
 
 - 4 sub-agents drafted batches 010–013 in parallel against shallow

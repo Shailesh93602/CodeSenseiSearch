@@ -10,11 +10,11 @@ empty state. This document is the playbook for getting there.
 
 | Source             | contentType                | Target | Status     |
 | ------------------ | -------------------------- | ------ | ---------- |
-| GitHub             | `REPOSITORY_FILE`          | 1000   | 330/1000   |
+| GitHub             | `REPOSITORY_FILE`          | 1000   | 435/1000   |
 | Stack Overflow     | `STACKOVERFLOW_*`          | 1000   | 0/1000     |
 | Documentation      | `DOCUMENTATION_PAGE`       |  500   | 15/500     |
 | Blog               | `BLOG_POST`                |  100   | 0/100      |
-| **Total**          |                            | 2600   | 345/2600   |
+| **Total**          |                            | 2600   | 450/2600   |
 
 Done in **batches of ~30**, one or two batches per session. ~85 total
 batches → ~10–15 working sessions to first milestone (1000 GitHub).
@@ -152,14 +152,16 @@ is idempotent and cheap.
 | 011 | github-011-nextjs-app-router.ts       | Next.js App Router (RSC, server actions, revalidate, fetch cache, headers/cookies/draftMode, edge, streaming) | ✅ shipped (30) |
 | 012 | github-012-prisma-patterns.ts         | Prisma (DataLoader batching, $transaction itx, $queryRaw safety, $extends, migrate dev/deploy/resolve, driver adapters, Postgres extensions) | ✅ shipped (30) |
 | 013 | github-013-bullmq-patterns.ts         | BullMQ (workers, queue.add options, sandboxed processors, FlowProducer, rate limit, stalled detection, atomic Lua scripts) | ✅ shipped (25) |
-| 014 | github-014-typescript-types.ts        | Pick/Omit/infer, mapped types, template literal types, satisfies, branded types, conditional types | pending |
-| 015 | github-015-async-patterns.ts          | AbortController, Promise.all/allSettled, p-queue, retry/backoff, debounce, race patterns | pending |
-| 016 | github-016-postgres-patterns.ts       | Indexes (BTree/GIN/HNSW), EXPLAIN ANALYZE, JSONB, full-text, window functions, partitioning | pending |
-| 017 | github-017-testing-patterns.ts        | Jest setup, Vitest, MSW handlers, Playwright fixtures, supertest, snapshot testing | pending |
+| 014 | github-014-zod-typescript.ts          | Zod (object cached shape, infer/input/output, refine vs superRefine, brand, lazy, transform/coerce, ZodEffects, errorMap precedence) | ✅ shipped (30) |
+| 015 | github-015-async-patterns.ts          | p-queue concurrency/priority/rate-limit, AbortSignal, Promise.all/allSettled/race/any, withResolvers, async iterators, scheduler ordering | ✅ shipped (25) |
+| 016 | github-016-vitest-testing.ts          | Vitest (config inheritance, vi.mock hoisting, fake-timers + sinon, fork/thread/vmThreads pools, sharding, test.extend fixtures) | ✅ shipped (25) |
+| 017 | github-017-radix-primitives.ts        | Radix UI (Dialog focus trap, Popper @floating-ui, Toast region, Slot prop merging, useControllableState, useFocusGuards, composeRefs) | ✅ shipped (25) |
 | 018 | github-018-rust-patterns.ts           | Rc/Arc/Box, traits, async/await tokio, error handling with `?`, lifetimes, ownership | pending |
 | 019 | github-019-go-patterns.ts             | Goroutines, channels, context, error wrapping, table-driven tests, sync.Pool | pending |
 | 020 | github-020-python-patterns.ts         | asyncio TaskGroup, dataclasses, typing.Protocol, contextlib, structural typing | pending |
-| ... | (more batches for k8s, devops, security, etc.) | toward 1000 GitHub                  | pending |
+| 021 | github-021-postgres-patterns.ts       | Indexes (BTree/GIN/HNSW), EXPLAIN ANALYZE, JSONB, full-text, window functions, partitioning | pending |
+| 022 | github-022-devops-cicd.ts             | GitHub Actions composite actions, matrix builds, caching, OIDC, Docker layer caching | pending |
+| ... | (more batches for k8s, security, build tooling) | toward 1000 GitHub                  | pending |
 
 That's 300 entries to start — covers the most-likely "react",
 "nextjs", "typescript", "async", "database", "redis" queries.

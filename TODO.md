@@ -13,26 +13,25 @@ in [CORPUS-PLAN.md](./CORPUS-PLAN.md).
 
 ## A. Corpus expansion (the active work)
 
-Current totals: **345/2600 chunks** (15 docs + 330 GitHub).
+Current totals: **450/2600 chunks** (15 docs + 435 GitHub).
 
 | Source         | Target | Have | Next                                    |
 | -------------- | ------ | ---- | --------------------------------------- |
-| GitHub         | 1000   | 330  | OSS batches 014–025 (TS types, async, Postgres, testing, Rust, Go, Python, k8s) |
-| Stack Overflow | 1000   |   0  | start after GitHub crosses ~500         |
+| GitHub         | 1000   | 435  | OSS batches 018–022 (Rust, Go, Python, Postgres, devops) |
+| Stack Overflow | 1000   |   0  | start after GitHub crosses ~600         |
 | Documentation  |  500   |  15  | extend gradually from owner-authored Q&A |
 | Blog           |  100   |   0  | quarterly cadence, link to portfolio blog |
 
-- [ ] 🟡 **OSS batches 014–020.** Next 7 batches per CORPUS-PLAN
-  roadmap → ~+200 entries. Themes: TypeScript types, async patterns,
-  Postgres, testing, Rust, Go, Python. Use parallel agents
-  (4–5 at a time). Target: ~530/1000 GitHub by end of next session.
-- [ ] 🟡 **OSS batches 021–025.** Final 5 batches to close out
-  GitHub: k8s, devops, security, build tooling, DB internals.
-  → +150 entries → 680+/1000 GitHub.
-- [ ] 🟡 **More personal-project entries.** Each personal repo can
-  yield another 15-25 entries on patterns the first agent missed.
-  Plus: ContextQA-related work (chrome extensions, anything
-  publicly OK to attribute). +150 entries.
+- [ ] 🟡 **OSS batches 018–022.** Next 5 batches → +125 entries.
+  Themes: Rust (tokio), Go (stdlib + popular libs), Python
+  (asyncio + typing), Postgres internals (or pgvector deep-dive),
+  GitHub Actions / DevOps. Brings GitHub to ~560/1000.
+- [ ] 🟡 **OSS batches 023–030.** Build tooling, k8s, security,
+  observability, network protocols, more frameworks. → +200
+  entries → 760+/1000 GitHub.
+- [ ] 🟡 **Personal-project second pass.** Each repo can yield
+  another 15-25 entries on patterns the first agent missed.
+  +150 entries → 900+/1000 GitHub.
 - [ ] 🟡 **Stack Overflow batches (so-001 onwards).** Real
   questions under CC-BY-SA, with proper attribution (author +
   question id). Target 1000 across ~33 batches.
