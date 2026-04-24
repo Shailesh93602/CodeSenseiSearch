@@ -13,26 +13,20 @@ in [CORPUS-PLAN.md](./CORPUS-PLAN.md).
 
 ## A. Corpus expansion (the active work)
 
-Current totals: **45/2600 chunks** (15 docs + 30 GitHub).
+Current totals: **230/2600 chunks** (15 docs + 215 GitHub).
 
 | Source         | Target | Have | Next                                    |
 | -------------- | ------ | ---- | --------------------------------------- |
-| GitHub         | 1000   |  30  | personal-project batches (002–009)      |
-| Stack Overflow | 1000   |   0  | start after GitHub crosses ~200         |
+| GitHub         | 1000   | 215  | OSS popular-repo batches (010–025)      |
+| Stack Overflow | 1000   |   0  | start after GitHub crosses ~500         |
 | Documentation  |  500   |  15  | extend gradually from owner-authored Q&A |
 | Blog           |  100   |   0  | quarterly cadence, link to portfolio blog |
 
-- [ ] 🔴 **Personal-project batches (002–009).** One batch per
-  personal repo, attributed to the real GitHub URL. Drafted in
-  parallel by sub-agents this session; integrated, deployed, seeded.
-  Repos: KhataGO, EduScale (DevScale), DevTrack, CareerGlyph,
-  redis-battle-demo, stripe-payments-demo, razorpay-patterns-demo,
-  portfolio_next. Target: ~25 entries each → +200 GitHub chunks.
-- [ ] 🟡 **OSS popular-repo batches (010–034).** Resume the
-  CORPUS-PLAN roadmap (TypeScript types, Next.js routing, Prisma,
-  Postgres, BullMQ, testing, Rust, Go, Python, etc.). 25 batches
-  × 30 entries = 750. Combined with personal projects this hits the
-  GitHub 1000 target.
+- [ ] 🟡 **OSS popular-repo batches (010–025).** ~25 batches × 30
+  entries = 750. Topics in CORPUS-PLAN.md: TypeScript types,
+  Next.js routing, async patterns, Prisma, Postgres, BullMQ,
+  testing, Rust, Go, Python, k8s, etc. Brings GitHub to 1000.
+  Use parallel agents (4–5 at a time) to keep authoring throughput up.
 - [ ] 🟡 **Stack Overflow batches (so-001 onwards).** Real
   questions under CC-BY-SA, with proper attribution (author +
   question id). Target 1000 across ~33 batches.

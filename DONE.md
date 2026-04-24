@@ -4,6 +4,27 @@ Items move here from `TODO.md` as they ship. Most-recent at the top.
 
 ---
 
+## 2026-04-24 — Corpus expansion: 8 personal-project batches (185 entries)
+
+- 4 sub-agents drafted batches 002–009 in parallel, each scanning
+  a real personal repo on the user's machine and extracting
+  attributable patterns. **185/185 file paths verified to exist
+  in source** before integration (zero fabrication).
+- Repos: KhataGO, EduScale (DevScale), DevTrack, CareerGlyph,
+  redis-battle-demo, stripe-payments-demo, razorpay-patterns-demo,
+  portfolio_next. All public on github.com/Shailesh93602/.
+- `SeedService` now accepts `?limit=N` so a 200-item batch can be
+  chunked under Vercel's 60s function ceiling. Operator calls the
+  endpoint in a loop until `{embedded: 0}`.
+- Fixed: synthetic `githubId` hash overflowed Postgres INT4
+  (`-4_200_397_917` ∉ ±2.1B). Clamped to `[0, 2_147_483_647]`,
+  then negated; final ids land in `[-2_147_483_647, -1]`.
+- Seed run: 230/230 chunks embedded across 6 chunked invocations
+  (~36s total Gemini wall time, well within free-tier RPD).
+- Verified live: 9 sample queries each return targeted hits
+  attributed to the right personal repo (WhatsApp HMAC, Redlock,
+  Supabase RLS, Stripe SETNX, Razorpay signature, etc.).
+
 ## 2026-04-24 — Corpus expansion: rails + first batch
 
 - Corpus expansion plan ([CORPUS-PLAN.md](./CORPUS-PLAN.md)):

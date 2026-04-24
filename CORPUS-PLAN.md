@@ -8,13 +8,13 @@ empty state. This document is the playbook for getting there.
 
 ## Targets
 
-| Source             | contentType                | Target | Status   |
-| ------------------ | -------------------------- | ------ | -------- |
-| GitHub             | `REPOSITORY_FILE`          | 1000   | 30/1000  |
-| Stack Overflow     | `STACKOVERFLOW_*`          | 1000   | 0/1000   |
-| Documentation      | `DOCUMENTATION_PAGE`       |  500   | 15/500   |
-| Blog               | `BLOG_POST`                |  100   | 0/100    |
-| **Total**          |                            | 2600   | 45/2600  |
+| Source             | contentType                | Target | Status     |
+| ------------------ | -------------------------- | ------ | ---------- |
+| GitHub             | `REPOSITORY_FILE`          | 1000   | 215/1000   |
+| Stack Overflow     | `STACKOVERFLOW_*`          | 1000   | 0/1000     |
+| Documentation      | `DOCUMENTATION_PAGE`       |  500   | 15/500     |
+| Blog               | `BLOG_POST`                |  100   | 0/100      |
+| **Total**          |                            | 2600   | 230/2600   |
 
 Done in **batches of ~30**, one or two batches per session. ~85 total
 batches → ~10–15 working sessions to first milestone (1000 GitHub).
@@ -139,17 +139,25 @@ is idempotent and cheap.
 
 | #   | File                                  | Theme                                     | Status   |
 | --- | ------------------------------------- | ----------------------------------------- | -------- |
-| 001 | github-001-react-hooks.ts             | React hooks + state libs (Zustand, Jotai, SWR, Query, RHF, Next.js, shadcn) | ✅ shipped (30) |
-| 002 | github-002-typescript-types.ts        | Pick/Omit/infer, mapped types, template literal types, satisfies, branded types | pending |
-| 003 | github-003-nextjs-app-router.ts       | Layouts, parallel routes, intercepts, middleware, fetch caching, Suspense in RSC | pending |
-| 004 | github-004-async-patterns.ts          | AbortController, Promise.all/allSettled, p-queue, retry/backoff, debounce | pending |
-| 005 | github-005-node-streams.ts            | Readable/Writable streams, pipelines, backpressure, stream.pipeline vs pipe | pending |
-| 006 | github-006-prisma-patterns.ts         | findUnique vs findFirst, transactions, raw SQL, JSON queries, pagination | pending |
-| 007 | github-007-postgres-patterns.ts       | Indexes (BTree/GIN/HNSW), EXPLAIN ANALYZE, JSONB, full-text, window functions | pending |
-| 008 | github-008-bullmq-redis.ts            | Workers, queues, retry, DLQ, repeatable jobs, Redis SET NX EX, Redlock | pending |
-| 009 | github-009-testing-patterns.ts        | Jest setup, Vitest, MSW handlers, Playwright fixtures, supertest | pending |
-| 010 | github-010-rust-patterns.ts           | Rc/Arc/Box, traits, async/await tokio, error handling with `?`, lifetimes | pending |
-| ... | (future batches for python, go, devops, etc.) |                                | pending |
+| 001 | github-001-react-hooks.ts             | React hooks + state libs (Zustand, Jotai, SWR, Query, RHF, Next.js, shadcn) — popular OSS | ✅ shipped (30) |
+| 002 | github-002-khatago-patterns.ts        | Personal: WhatsApp/Meta integration, Gemini agent, Razorpay webhook, Tally XML, Prisma | ✅ shipped (25) |
+| 003 | github-003-eduscale-patterns.ts       | Personal: Socket.io Redis adapter, Redlock, opossum CB, Bull DLQ, Supabase JWT, prom-client | ✅ shipped (25) |
+| 004 | github-004-devtrack-patterns.ts       | Personal: Supabase Realtime, RLS policies, rule engines, P2002→409, Vercel cron | ✅ shipped (25) |
+| 005 | github-005-careerglyph-patterns.ts    | Personal: NestJS auth (bcrypt+JWT), ownership-check 404, axios interceptor pair | ✅ shipped (25) |
+| 006 | github-006-redis-battle.ts            | Personal: Socket.io pub/sub, Redlock retry-0, lock-TTL invariants, Prom observability | ✅ shipped (20) |
+| 007 | github-007-stripe-payments.ts         | Personal: SETNX webhook idempotency, raw-body HMAC, exp backoff bypass-4xx, lazy SDK | ✅ shipped (20) |
+| 008 | github-008-razorpay-patterns.ts       | Personal: hand-rolled createHmac+timingSafeEqual, entity-id idempotency, Razorpay deltas | ✅ shipped (20) |
+| 009 | github-009-portfolio-next.ts          | Personal: rate-limit + mailto fallback, snapshot fallback, OG image, Playwright matrix | ✅ shipped (25) |
+| 010 | github-010-typescript-types.ts        | Pick/Omit/infer, mapped types, template literal types, satisfies, branded types | pending |
+| 011 | github-011-nextjs-app-router.ts       | Layouts, parallel routes, intercepts, middleware, fetch caching, Suspense in RSC | pending |
+| 012 | github-012-async-patterns.ts          | AbortController, Promise.all/allSettled, p-queue, retry/backoff, debounce | pending |
+| 013 | github-013-prisma-patterns.ts         | findUnique vs findFirst, transactions, raw SQL, JSON queries, pagination | pending |
+| 014 | github-014-postgres-patterns.ts       | Indexes (BTree/GIN/HNSW), EXPLAIN ANALYZE, JSONB, full-text, window functions | pending |
+| 015 | github-015-bullmq-redis.ts            | Workers, queues, retry, DLQ, repeatable jobs, Redis SET NX EX, Redlock | pending |
+| 016 | github-016-testing-patterns.ts        | Jest setup, Vitest, MSW handlers, Playwright fixtures, supertest | pending |
+| 017 | github-017-rust-patterns.ts           | Rc/Arc/Box, traits, async/await tokio, error handling with `?`, lifetimes | pending |
+| 018 | github-018-go-patterns.ts             | Goroutines, channels, context, error wrapping, table-driven tests | pending |
+| ... | (more batches for python, devops, k8s, etc.) | toward 1000 GitHub                  | pending |
 
 That's 300 entries to start — covers the most-likely "react",
 "nextjs", "typescript", "async", "database", "redis" queries.
