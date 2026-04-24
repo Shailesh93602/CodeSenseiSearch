@@ -17,6 +17,10 @@ import { BATCH as github006 } from './github-006-redis-battle';
 import { BATCH as github007 } from './github-007-stripe-payments';
 import { BATCH as github008 } from './github-008-razorpay-patterns';
 import { BATCH as github009 } from './github-009-portfolio-next';
+import { BATCH as github010 } from './github-010-tanstack-query';
+import { BATCH as github011 } from './github-011-nextjs-app-router';
+import { BATCH as github012 } from './github-012-prisma-patterns';
+import { BATCH as github013 } from './github-013-bullmq-patterns';
 
 export const ALL_BATCHES: ReadonlyArray<{ name: string; items: SeedItem[] }> = [
   { name: 'github-001-react-hooks', items: github001 },
@@ -28,6 +32,10 @@ export const ALL_BATCHES: ReadonlyArray<{ name: string; items: SeedItem[] }> = [
   { name: 'github-007-stripe-payments', items: github007 },
   { name: 'github-008-razorpay-patterns', items: github008 },
   { name: 'github-009-portfolio-next', items: github009 },
+  { name: 'github-010-tanstack-query', items: github010 },
+  { name: 'github-011-nextjs-app-router', items: github011 },
+  { name: 'github-012-prisma-patterns', items: github012 },
+  { name: 'github-013-bullmq-patterns', items: github013 },
 ];
 
 /** Flattened item list for the seed service to iterate. */
