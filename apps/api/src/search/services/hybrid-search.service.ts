@@ -41,7 +41,7 @@ export interface HybridSearchOptions {
   vectorThreshold?: number;
   vectorWeight?: number;
   textWeight?: number;
-  source?: 'repository' | 'question' | 'all';
+  source?: 'repository' | 'question' | 'documentation' | 'all';
   language?: string;
   contentType?: string;
   repository?: string;

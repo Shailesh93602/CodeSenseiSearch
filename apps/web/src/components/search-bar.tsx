@@ -129,24 +129,29 @@ export function SearchBar({ query, onQueryChange, onSearch }: SearchBarProps) {
     <div className="relative">
       {/* Search Input */}
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           ref={inputRef}
           type="text"
-          placeholder="Search for code, solutions, documentation..."
+          // Two-tier placeholder: a short one for narrow viewports, a
+          // longer one for everything else. CSS-only switch via two
+          // separate elements would be fancier; setting it once at
+          // mount + relying on text-overflow is good enough.
+          placeholder="Search snippets, docs, examples…"
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => setIsOpen(query.length === 0)}
           aria-label="Search query"
-          className="h-12 pl-10 pr-28 text-base bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+          data-search-input="true"
+          className="h-12 pl-10 pr-28 text-base bg-background text-foreground border-input focus:border-ring focus-visible:ring-ring"
         />
         {query && (
           <button
             type="button"
             onClick={clearQuery}
             aria-label="Clear search"
-            className="absolute right-[6.5rem] top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+            className="absolute right-[6.5rem] top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
@@ -155,7 +160,7 @@ export function SearchBar({ query, onQueryChange, onSearch }: SearchBarProps) {
           type="button"
           size="sm"
           onClick={() => submitQuery(query)}
-          className="absolute right-1 top-1/2 -translate-y-1/2 h-10 px-4 bg-blue-600 hover:bg-blue-700"
+          className="absolute right-1 top-1/2 -translate-y-1/2 h-10 px-4"
         >
           Search
         </Button>
@@ -163,7 +168,7 @@ export function SearchBar({ query, onQueryChange, onSearch }: SearchBarProps) {
 
       {/* Suggestions Dropdown */}
       {isOpen && (query.length === 0 ? recentSearches.length > 0 : true) && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-96 overflow-hidden">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-popover text-popover-foreground border border-border rounded-lg shadow-lg z-50 max-h-96 overflow-hidden">
           <Command className="h-full">
             <CommandList>
               {query.length === 0 && recentSearches.length > 0 && (
@@ -221,14 +226,14 @@ export function SearchBar({ query, onQueryChange, onSearch }: SearchBarProps) {
       )}
 
       {/* Example queries — chosen to match the seeded corpus */}
-      <div className="flex flex-wrap items-center gap-2 mt-3">
-        <span className="text-sm text-slate-500">Try:</span>
+      <div className="flex flex-wrap items-center gap-1.5 mt-3">
+        <span className="text-xs text-muted-foreground mr-1">Try:</span>
         {EXAMPLE_QUERIES.map((suggestion) => (
           <button
             key={suggestion}
             type="button"
             onClick={() => handleSuggestionClick(suggestion)}
-            className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 rounded hover:bg-slate-200 transition-colors"
+            className="inline-flex items-center rounded-full border border-border bg-secondary/60 px-2.5 py-0.5 text-xs font-medium text-secondary-foreground hover:border-primary/40 hover:bg-primary/5 transition-colors"
           >
             {suggestion}
           </button>

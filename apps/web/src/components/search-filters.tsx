@@ -1,12 +1,11 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Github, MessageSquare, BookOpen, Code, Calendar, Star, Filter } from "lucide-react";
+import { Code2, MessageSquare, BookOpen, Calendar, Star, Filter, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface Filters {
+export interface Filters {
   source: string;
   language: string;
   sortBy: string;
@@ -16,177 +15,162 @@ interface Filters {
 interface SearchFiltersProps {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
+  /** Optional clear handler — only rendered when there's something to clear. */
+  onClear?: () => void;
 }
 
-export function SearchFilters({ filters, onFiltersChange }: SearchFiltersProps) {
-  const updateFilter = (key: keyof Filters, value: string) => {
+const SOURCE_OPTIONS = [
+  { value: "all", label: "All sources", Icon: null },
+  { value: "github", label: "GitHub", Icon: Code2 },
+  { value: "stackoverflow", label: "Stack Overflow", Icon: MessageSquare },
+  { value: "docs", label: "Documentation", Icon: BookOpen },
+] as const;
+
+const LANGUAGE_OPTIONS = [
+  { value: "all", label: "All languages" },
+  { value: "javascript", label: "JavaScript" },
+  { value: "typescript", label: "TypeScript" },
+  { value: "python", label: "Python" },
+  { value: "go", label: "Go" },
+  { value: "rust", label: "Rust" },
+  { value: "java", label: "Java" },
+  { value: "csharp", label: "C#" },
+  { value: "php", label: "PHP" },
+] as const;
+
+const SORT_OPTIONS = [
+  { value: "relevance", label: "Relevance", Icon: Star },
+  { value: "date", label: "Most recent", Icon: Calendar },
+] as const;
+
+const DATE_OPTIONS = [
+  { value: "all", label: "All time" },
+  { value: "week", label: "Past week" },
+  { value: "month", label: "Past month" },
+  { value: "year", label: "Past year" },
+] as const;
+
+export function SearchFilters({
+  filters,
+  onFiltersChange,
+  onClear,
+}: SearchFiltersProps) {
+  const update = (key: keyof Filters, value: string) =>
     onFiltersChange({ ...filters, [key]: value });
-  };
-
-  const clearFilters = () => {
-    onFiltersChange({
-      source: "all",
-      language: "all", 
-      sortBy: "relevance",
-      dateRange: "all"
-    });
-  };
-
-  const hasActiveFilters = Object.values(filters).some(value => value !== "all" && value !== "relevance");
 
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold flex items-center gap-2">
-          <Filter className="h-4 w-4" />
+    <Card className="p-5 bg-card text-card-foreground border-border">
+      <div className="flex items-center justify-between mb-5">
+        <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
           Filters
         </h3>
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
-            Clear all
+        {onClear && (
+          <Button variant="ghost" size="sm" onClick={onClear} className="h-7 text-xs">
+            Clear
           </Button>
         )}
       </div>
 
-      {/* Source Filter */}
-      <div className="mb-6">
-        <h4 className="text-sm font-medium text-slate-700 mb-3">Source</h4>
-        <div className="space-y-2">
-          {[
-            { value: "all", label: "All Sources", icon: null },
-            { value: "github", label: "GitHub", icon: Github },
-            { value: "stackoverflow", label: "Stack Overflow", icon: MessageSquare },
-            { value: "docs", label: "Documentation", icon: BookOpen }
-          ].map((source) => {
-            const IconComponent = source.icon;
-            return (
-              <button
-                key={source.value}
-                onClick={() => updateFilter("source", source.value)}
-                className={`flex items-center gap-2 w-full p-2 text-sm rounded-md transition-colors ${
-                  filters.source === source.value
-                    ? "bg-blue-100 text-blue-700 border border-blue-200"
-                    : "hover:bg-slate-100 text-slate-600"
-                }`}
-              >
-                {IconComponent && <IconComponent className="h-4 w-4" />}
-                {source.label}
-                {filters.source === source.value && (
-                  <Badge variant="secondary" className="ml-auto text-xs">
-                    Active
-                  </Badge>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <FilterGroup label="Source">
+        {SOURCE_OPTIONS.map((opt) => (
+          <FilterOption
+            key={opt.value}
+            label={opt.label}
+            Icon={opt.Icon}
+            active={filters.source === opt.value}
+            onClick={() => update("source", opt.value)}
+          />
+        ))}
+      </FilterGroup>
 
-      <Separator className="my-4" />
+      <FilterGroup label="Language">
+        {LANGUAGE_OPTIONS.map((opt) => (
+          <FilterOption
+            key={opt.value}
+            label={opt.label}
+            active={filters.language === opt.value}
+            onClick={() => update("language", opt.value)}
+          />
+        ))}
+      </FilterGroup>
 
-      {/* Language Filter */}
-      <div className="mb-6">
-        <h4 className="text-sm font-medium text-slate-700 mb-3">Language</h4>
-        <div className="space-y-2">
-          {[
-            { value: "all", label: "All Languages" },
-            { value: "javascript", label: "JavaScript" },
-            { value: "typescript", label: "TypeScript" },
-            { value: "python", label: "Python" },
-            { value: "java", label: "Java" },
-            { value: "csharp", label: "C#" },
-            { value: "go", label: "Go" },
-            { value: "rust", label: "Rust" },
-            { value: "php", label: "PHP" }
-          ].map((language) => (
-            <button
-              key={language.value}
-              onClick={() => updateFilter("language", language.value)}
-              className={`flex items-center gap-2 w-full p-2 text-sm rounded-md transition-colors ${
-                filters.language === language.value
-                  ? "bg-blue-100 text-blue-700 border border-blue-200"
-                  : "hover:bg-slate-100 text-slate-600"
-              }`}
-            >
-              <Code className="h-4 w-4" />
-              {language.label}
-              {filters.language === language.value && (
-                <Badge variant="secondary" className="ml-auto text-xs">
-                  Active
-                </Badge>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+      <FilterGroup label="Sort by">
+        {SORT_OPTIONS.map((opt) => (
+          <FilterOption
+            key={opt.value}
+            label={opt.label}
+            Icon={opt.Icon}
+            active={filters.sortBy === opt.value}
+            onClick={() => update("sortBy", opt.value)}
+          />
+        ))}
+      </FilterGroup>
 
-      <Separator className="my-4" />
-
-      {/* Sort By Filter */}
-      <div className="mb-6">
-        <h4 className="text-sm font-medium text-slate-700 mb-3">Sort by</h4>
-        <div className="space-y-2">
-          {[
-            { value: "relevance", label: "Relevance", icon: Star },
-            { value: "date", label: "Date", icon: Calendar },
-            { value: "stars", label: "Stars", icon: Star }
-          ].map((sort) => {
-            const IconComponent = sort.icon;
-            return (
-              <button
-                key={sort.value}
-                onClick={() => updateFilter("sortBy", sort.value)}
-                className={`flex items-center gap-2 w-full p-2 text-sm rounded-md transition-colors ${
-                  filters.sortBy === sort.value
-                    ? "bg-blue-100 text-blue-700 border border-blue-200"
-                    : "hover:bg-slate-100 text-slate-600"
-                }`}
-              >
-                <IconComponent className="h-4 w-4" />
-                {sort.label}
-                {filters.sortBy === sort.value && (
-                  <Badge variant="secondary" className="ml-auto text-xs">
-                    Active
-                  </Badge>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <Separator className="my-4" />
-
-      {/* Date Range Filter */}
-      <div>
-        <h4 className="text-sm font-medium text-slate-700 mb-3">Date Range</h4>
-        <div className="space-y-2">
-          {[
-            { value: "all", label: "All time" },
-            { value: "week", label: "Past week" },
-            { value: "month", label: "Past month" },
-            { value: "year", label: "Past year" }
-          ].map((date) => (
-            <button
-              key={date.value}
-              onClick={() => updateFilter("dateRange", date.value)}
-              className={`flex items-center gap-2 w-full p-2 text-sm rounded-md transition-colors ${
-                filters.dateRange === date.value
-                  ? "bg-blue-100 text-blue-700 border border-blue-200"
-                  : "hover:bg-slate-100 text-slate-600"
-              }`}
-            >
-              <Calendar className="h-4 w-4" />
-              {date.label}
-              {filters.dateRange === date.value && (
-                <Badge variant="secondary" className="ml-auto text-xs">
-                  Active
-                </Badge>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+      <FilterGroup label="Date" hideDivider>
+        {DATE_OPTIONS.map((opt) => (
+          <FilterOption
+            key={opt.value}
+            label={opt.label}
+            active={filters.dateRange === opt.value}
+            onClick={() => update("dateRange", opt.value)}
+          />
+        ))}
+      </FilterGroup>
     </Card>
+  );
+}
+
+function FilterGroup({
+  label,
+  hideDivider,
+  children,
+}: {
+  label: string;
+  hideDivider?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "py-4 first:pt-0",
+        !hideDivider && "border-b border-border last:border-b-0",
+      )}
+    >
+      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+        {label}
+      </h4>
+      <div className="space-y-0.5">{children}</div>
+    </div>
+  );
+}
+
+function FilterOption({
+  label,
+  Icon,
+  active,
+  onClick,
+}: {
+  label: string;
+  Icon?: React.ComponentType<{ className?: string }> | null;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+        active
+          ? "bg-primary/10 text-foreground font-medium"
+          : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+      )}
+    >
+      {Icon && <Icon className="h-3.5 w-3.5 shrink-0" />}
+      <span className="flex-1 text-left">{label}</span>
+      {active && <Check className="h-3.5 w-3.5 text-primary" />}
+    </button>
   );
 }

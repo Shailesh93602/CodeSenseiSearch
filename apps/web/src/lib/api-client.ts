@@ -140,17 +140,26 @@ class ApiClient {
     return this.request<{ status: string; timestamp: string; service: string; version: string }>('/health');
   }
 
-  // Search operations
+  // Search operations.
+  //
+  // The NestJS controller signature is:
+  //   @Post('hybrid') (@Body() body: { query: string; options?: SearchOptions })
+  // so we MUST nest the filter params under `options` — spreading at
+  // the top level (the previous bug) made the controller see them as
+  // unknown root keys and silently ignore every filter.
+  //
+  // We also map FE-flavored source names ("github" / "stackoverflow"
+  // / "docs") to the API enum the search service understands
+  // ("repository" / "question" / "documentation"). The two vocabularies
+  // shouldn't be merged: the FE labels are user-facing while the API
+  // enum mirrors a Prisma type.
   async searchSemantic(
     query: string,
     options: SearchFilters = {}
   ): Promise<SearchResponse> {
     return this.request<SearchResponse>('/search/semantic', {
       method: 'POST',
-      body: JSON.stringify({
-        query,
-        ...options,
-      }),
+      body: JSON.stringify({ query, options: toApiOptions(options) }),
     });
   }
 
@@ -160,10 +169,7 @@ class ApiClient {
   ): Promise<SearchResponse> {
     return this.request<SearchResponse>('/search/hybrid', {
       method: 'POST',
-      body: JSON.stringify({
-        query,
-        ...options,
-      }),
+      body: JSON.stringify({ query, options: toApiOptions(options) }),
     });
   }
 
@@ -173,10 +179,7 @@ class ApiClient {
   ): Promise<SearchResponse> {
     return this.request<SearchResponse>('/search/text', {
       method: 'POST',
-      body: JSON.stringify({
-        query,
-        ...options,
-      }),
+      body: JSON.stringify({ query, options: toApiOptions(options) }),
     });
   }
 
@@ -186,10 +189,7 @@ class ApiClient {
   ): Promise<SearchResponse> {
     return this.request<SearchResponse>('/search/questions', {
       method: 'POST',
-      body: JSON.stringify({
-        query,
-        ...options,
-      }),
+      body: JSON.stringify({ query, options: toApiOptions(options) }),
     });
   }
 
@@ -266,6 +266,47 @@ class ApiClient {
 
 // Create singleton instance
 export const apiClient = new ApiClient();
+
+/**
+ * Map FE-flavored filter values into the API's option shape.
+ * - source: "github" | "stackoverflow" | "docs" → "repository" |
+ *   "question" | "documentation" (the API's enum). "all" passes
+ *   through to mean "no filter."
+ * - language: passes through; the API does case-sensitive matching
+ *   on the lowercase enum values, which match what the UI uses.
+ * - sortBy / dateRange: not implemented server-side yet; documented
+ *   in TODO.md item A.1.
+ *
+ * Drops any field that's the default ("all" / "relevance") so the
+ * outgoing JSON stays compact and the API doesn't see noise.
+ */
+function toApiOptions(opts: SearchFilters): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (opts.limit) out.limit = opts.limit;
+  if (opts.offset) out.offset = opts.offset;
+
+  if (opts.source && opts.source !== "all") {
+    const map: Record<string, string> = {
+      github: "repository",
+      stackoverflow: "question",
+      docs: "documentation",
+    };
+    out.source = map[opts.source] ?? opts.source;
+  }
+  if (opts.language && opts.language !== "all") {
+    out.language = opts.language;
+  }
+  // sortBy + dateRange are accepted into the request body so the
+  // controller can adopt them without an FE change. Until the
+  // server supports them, they're effectively no-ops.
+  if (opts.sortBy && opts.sortBy !== "relevance") {
+    out.sortBy = opts.sortBy;
+  }
+  if (opts.dateRange && opts.dateRange !== "all") {
+    out.dateRange = opts.dateRange;
+  }
+  return out;
+}
 
 // Export default
 export default apiClient;

@@ -5,33 +5,23 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSearch } from "@/lib/hooks/use-search";
-import { Code2, MessageSquare, BookOpen, Copy, Check } from "lucide-react";
-
-interface Filters {
-  source: string;
-  language: string;
-  sortBy: string;
-  dateRange: string;
-}
+import {
+  Code2,
+  MessageSquare,
+  BookOpen,
+  Copy,
+  Check,
+  AlertTriangle,
+  SearchX,
+} from "lucide-react";
+import type { Filters } from "@/components/search-filters";
+import { cn } from "@/lib/utils";
 
 interface SearchResultsProps {
   query: string;
   filters: Filters;
 }
 
-/**
- * The deployed API returns chunks (cmobr2uys..., content, similarity,
- * metadata). The shape DOES NOT match the rich Stack Overflow / GitHub
- * mock objects this component used to consume — it has no stars,
- * tags, code field, author, etc. So we render exactly what's there:
- * a title (parsed from the chunk's first line), the body content, the
- * similarity score, and source/language badges.
- *
- * The TypeScript types in lib/api-client.ts still describe the old
- * mock shape; we tolerate that mismatch with a single cast at the
- * useSearch boundary instead of refactoring every type that depends
- * on SearchResult.
- */
 interface ChunkResult {
   id: string;
   content: string;
@@ -46,10 +36,14 @@ interface ChunkResult {
   };
 }
 
+const EXAMPLE_QUERIES = [
+  "useEffect cleanup",
+  "async await vs promises",
+  "pgvector HNSW",
+  "JWT refresh token rotation",
+];
+
 function parseChunk(raw: ChunkResult): { title: string; body: string } {
-  // Items the seed inserted are stored as `${title}\n\n${body}`. Split
-  // on the first blank line so the title shows once at the top instead
-  // of being repeated inside the body block.
   const text = raw.content ?? "";
   const split = text.indexOf("\n\n");
   if (split === -1) return { title: text.slice(0, 120), body: "" };
@@ -59,9 +53,10 @@ function parseChunk(raw: ChunkResult): { title: string; body: string } {
   };
 }
 
-function getSourceLabel(source?: string): {
+function getSourceInfo(source?: string): {
   label: string;
   Icon: typeof Code2;
+  /** Token-based color so dark mode works automatically. */
   className: string;
 } {
   switch (source) {
@@ -70,7 +65,8 @@ function getSourceLabel(source?: string): {
       return {
         label: "GitHub",
         Icon: Code2,
-        className: "bg-slate-100 text-slate-700",
+        className:
+          "bg-secondary text-secondary-foreground border-border",
       };
     case "question":
     case "STACKOVERFLOW_QUESTION":
@@ -78,7 +74,8 @@ function getSourceLabel(source?: string): {
       return {
         label: "Stack Overflow",
         Icon: MessageSquare,
-        className: "bg-orange-100 text-orange-700",
+        className:
+          "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-200 dark:border-orange-900",
       };
     case "documentation":
     case "DOCUMENTATION_PAGE":
@@ -87,9 +84,38 @@ function getSourceLabel(source?: string): {
       return {
         label: "Documentation",
         Icon: BookOpen,
-        className: "bg-blue-100 text-blue-700",
+        className:
+          "bg-primary/10 text-primary border-primary/20 dark:bg-primary/15 dark:text-primary",
       };
   }
+}
+
+/**
+ * Highlight occurrences of any query term inside the body. Splits on
+ * each token (>= 2 chars), wraps matches with `<mark.search-mark>`.
+ * Case-insensitive. Escapes regex special chars in the query so a
+ * paste like `(useState` doesn't crash the regex compiler.
+ */
+function highlightMatches(body: string, query: string): React.ReactNode {
+  const tokens = query
+    .trim()
+    .split(/\s+/)
+    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$1"))
+    .filter((t) => t.length >= 2);
+
+  if (tokens.length === 0) return body;
+
+  const pattern = new RegExp(`(${tokens.join("|")})`, "gi");
+  const parts = body.split(pattern);
+  return parts.map((part, i) =>
+    pattern.test(part) ? (
+      <mark key={i} className="search-mark">
+        {part}
+      </mark>
+    ) : (
+      <span key={i}>{part}</span>
+    ),
+  );
 }
 
 export function SearchResults({ query, filters }: SearchResultsProps) {
@@ -131,9 +157,7 @@ export function SearchResults({ query, filters }: SearchResultsProps) {
 
   const filtersString = JSON.stringify(filters);
   useEffect(() => {
-    if (query.trim()) {
-      search();
-    }
+    if (query.trim()) search();
   }, [query, filtersString, search]);
 
   const copyChunk = async (text: string, id: string) => {
@@ -146,96 +170,119 @@ export function SearchResults({ query, filters }: SearchResultsProps) {
     }
   };
 
-  if (
-    !query &&
-    Object.values(filters).every((v) => v === "all" || v === "relevance")
-  ) {
+  // ----- Empty (no query yet) -----
+  if (!query.trim()) {
     return (
-      <div className="text-center py-12">
-        <div className="text-slate-600">
-          Enter a search query to find code, snippets, and documentation
-          across the indexed corpus.
-        </div>
-      </div>
+      <EmptyState
+        Icon={SearchX}
+        heading="Search the corpus"
+        body="Ask a question in plain English. The hybrid retrieval engine returns the closest matches from the indexed snippets."
+        cta={
+          <ExampleQueries
+            onPick={(q) => {
+              const url = new URL(window.location.href);
+              url.searchParams.set("q", q);
+              window.location.href = url.pathname + url.search;
+            }}
+          />
+        }
+      />
     );
   }
 
+  // ----- Loading (skeleton matches the shape of result cards) -----
   if (loading && results.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4" />
-        <div className="text-slate-600">
-          Searching for &ldquo;{query}&rdquo;…
+      <div>
+        <div className="mb-5 flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Searching for</span>
+          <span className="text-sm font-medium">&ldquo;{query}&rdquo;</span>
+        </div>
+        <div className="space-y-4" aria-busy="true" aria-live="polite">
+          {[0, 1, 2].map((i) => (
+            <ResultSkeleton key={i} />
+          ))}
         </div>
       </div>
     );
   }
 
+  // ----- Error -----
   if (error) {
     return (
-      <div className="text-center py-12">
-        <div className="text-red-600 mb-4">Search failed: {error}</div>
-        <Button onClick={retry} variant="outline">
-          Try Again
-        </Button>
-      </div>
+      <EmptyState
+        Icon={AlertTriangle}
+        heading="Search failed"
+        body={error}
+        cta={
+          <Button onClick={retry} variant="outline">
+            Try again
+          </Button>
+        }
+        tone="error"
+      />
     );
   }
 
+  // ----- No results for this query -----
   if (!loading && results.length === 0 && query) {
     return (
-      <div className="text-center py-12">
-        <div className="text-slate-600 mb-2">
-          No results for &ldquo;{query}&rdquo;
-        </div>
-        <div className="text-sm text-slate-500">
-          The seeded corpus is small — try one of the example queries on the
-          home page, or check &nbsp;
-          <a href="/docs" className="text-blue-600 hover:underline">
-            /docs
-          </a>{" "}
-          for what&apos;s indexed.
-        </div>
-      </div>
+      <EmptyState
+        Icon={SearchX}
+        heading={`No results for "${query}"`}
+        body="The seeded demo corpus is small (15 hand-curated entries). Try one of the topics it covers:"
+        cta={
+          <ExampleQueries
+            onPick={(q) => {
+              const url = new URL(window.location.href);
+              url.searchParams.set("q", q);
+              window.location.href = url.pathname + url.search;
+            }}
+          />
+        }
+      />
     );
   }
 
+  // ----- Results -----
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold text-slate-900">
+      <div className="mb-5 flex items-baseline justify-between gap-3 flex-wrap">
+        <h2 className="text-base font-semibold text-foreground">
           {totalResults} {totalResults === 1 ? "result" : "results"}
           {query && (
-            <span className="text-slate-500"> for &ldquo;{query}&rdquo;</span>
-          )}
-          {searchTime > 0 && (
-            <span className="text-sm text-slate-500 ml-2">
-              ({searchTime}ms)
+            <span className="ml-1 font-normal text-muted-foreground">
+              for &ldquo;{query}&rdquo;
             </span>
           )}
         </h2>
+        {searchTime > 0 && (
+          <span className="text-xs font-mono text-muted-foreground">
+            {searchTime}ms
+          </span>
+        )}
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-4">
         {results.map((raw) => {
           const { title, body } = parseChunk(raw);
           const meta = raw.metadata ?? {};
-          const sourceInfo = getSourceLabel(meta.source);
+          const source = getSourceInfo(meta.source);
           const isCopied = copiedId === raw.id;
           const fullText = `${title}\n\n${body}`;
 
           return (
             <Card
               key={raw.id}
-              className="p-6 hover:shadow-md transition-shadow border-l-4 border-l-blue-500"
+              className="group p-5 sm:p-6 bg-card text-card-foreground border-border hover:border-primary/40 hover:shadow-sm transition-all"
             >
-              <div className="flex flex-wrap items-center gap-2 mb-3">
+              <div className="flex flex-wrap items-center gap-1.5 mb-3">
                 <Badge
-                  variant="secondary"
-                  className={sourceInfo.className}
+                  variant="outline"
+                  className={cn("font-medium", source.className)}
                 >
-                  <sourceInfo.Icon className="h-3 w-3 mr-1" />
-                  {sourceInfo.label}
+                  <source.Icon className="h-3 w-3 mr-1" />
+                  {source.label}
                 </Badge>
                 {meta.language && (
                   <Badge variant="outline" className="font-mono text-xs">
@@ -243,32 +290,40 @@ export function SearchResults({ query, filters }: SearchResultsProps) {
                   </Badge>
                 )}
                 {typeof raw.similarity === "number" && (
-                  <Badge variant="outline" className="font-mono text-xs">
-                    similarity {raw.similarity.toFixed(3)}
+                  <Badge
+                    variant="outline"
+                    className="font-mono text-xs text-muted-foreground"
+                    title="Cosine similarity to the query embedding"
+                  >
+                    sim {raw.similarity.toFixed(2)}
                   </Badge>
                 )}
                 {typeof raw.score === "number" && (
-                  <Badge variant="outline" className="font-mono text-xs">
-                    score {raw.score.toFixed(3)}
+                  <Badge
+                    variant="outline"
+                    className="font-mono text-xs text-muted-foreground"
+                    title="Hybrid score (vector + text reranked)"
+                  >
+                    score {raw.score.toFixed(2)}
                   </Badge>
                 )}
               </div>
 
-              <h3 className="text-lg font-semibold text-slate-900 mb-3 leading-snug">
-                {title}
+              <h3 className="text-lg font-semibold leading-snug mb-3">
+                {highlightMatches(title, query)}
               </h3>
 
               {body && (
-                <pre className="whitespace-pre-wrap break-words text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-md p-4 overflow-x-auto leading-relaxed font-mono">
-                  {body}
-                </pre>
+                <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap font-mono bg-muted/40 border border-border rounded-md p-4 overflow-x-auto max-h-[28rem] overflow-y-auto">
+                  {highlightMatches(body, query)}
+                </div>
               )}
 
               <div className="mt-3 flex items-center justify-end">
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-8 text-xs"
+                  className="h-8 text-xs text-muted-foreground hover:text-foreground"
                   onClick={() => copyChunk(fullText, raw.id)}
                 >
                   {isCopied ? (
@@ -288,6 +343,77 @@ export function SearchResults({ query, filters }: SearchResultsProps) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function ResultSkeleton() {
+  return (
+    <div className="rounded-lg border border-border bg-card p-5 sm:p-6">
+      <div className="flex gap-2 mb-4">
+        <div className="h-5 w-24 rounded skeleton-shimmer bg-muted" />
+        <div className="h-5 w-16 rounded skeleton-shimmer bg-muted" />
+      </div>
+      <div className="h-6 w-3/4 rounded skeleton-shimmer bg-muted mb-3" />
+      <div className="h-32 w-full rounded skeleton-shimmer bg-muted" />
+    </div>
+  );
+}
+
+function EmptyState({
+  Icon,
+  heading,
+  body,
+  cta,
+  tone = "neutral",
+}: {
+  Icon: typeof SearchX;
+  heading: string;
+  body: string;
+  cta?: React.ReactNode;
+  tone?: "neutral" | "error";
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border border-dashed p-10 text-center",
+        tone === "error"
+          ? "border-destructive/40 bg-destructive/5"
+          : "border-border bg-muted/30",
+      )}
+    >
+      <div
+        className={cn(
+          "mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full",
+          tone === "error"
+            ? "bg-destructive/10 text-destructive"
+            : "bg-secondary text-muted-foreground",
+        )}
+      >
+        <Icon className="h-5 w-5" />
+      </div>
+      <h2 className="text-base font-semibold text-foreground mb-1">{heading}</h2>
+      <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
+        {body}
+      </p>
+      {cta}
+    </div>
+  );
+}
+
+function ExampleQueries({ onPick }: { onPick: (q: string) => void }) {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-2">
+      {EXAMPLE_QUERIES.map((q) => (
+        <button
+          key={q}
+          type="button"
+          onClick={() => onPick(q)}
+          className="inline-flex items-center rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground hover:border-primary/40 hover:bg-primary/5 transition-colors"
+        >
+          {q}
+        </button>
+      ))}
     </div>
   );
 }

@@ -2,8 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Search, Zap, ArrowRight } from "lucide-react";
+import { Search, ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -25,110 +24,138 @@ export function Hero() {
   };
 
   return (
-    <section className="relative overflow-hidden bg-linear-to-br from-slate-900 via-blue-900 to-slate-900">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
+    <section className="relative overflow-hidden border-b border-border bg-gradient-to-b from-background via-background to-secondary/30">
+      {/* Subtle grid */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-40 [mask-image:radial-gradient(ellipse_at_center,white,transparent_70%)]"
+      />
 
-      <div className="relative mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:px-8">
-        <div className="mx-auto max-w-4xl text-center">
-          <Badge
-            variant="secondary"
-            className="mb-6 bg-blue-100 text-blue-700 hover:bg-blue-200"
-          >
-            <Zap className="mr-1 h-3 w-3" />
-            Semantic code search — portfolio build
-          </Badge>
+      <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
+        <div className="text-center">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-background/60 backdrop-blur px-3 py-1 text-xs font-medium text-muted-foreground">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 animate-ping" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+            </span>
+            Semantic code search · portfolio reference build
+          </div>
 
-          <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-foreground leading-[1.1]">
             Search code by{" "}
-            <span className="bg-linear-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">
               meaning
             </span>{" "}
             — not keywords
           </h1>
 
-          <p className="mt-6 text-lg leading-8 text-slate-300 sm:text-xl">
-            Ask for what you need in plain English. A hybrid retrieval engine
-            combines Gemini embeddings over{" "}
-            <span className="font-mono text-slate-100">pgvector</span> with
-            Postgres full-text to return the closest matches from the corpus.
+          <p className="mt-5 mx-auto max-w-2xl text-base sm:text-lg text-muted-foreground leading-relaxed">
+            Ask in plain English. Hybrid retrieval combines Gemini embeddings
+            over <span className="font-mono text-foreground/80">pgvector</span>{" "}
+            with Postgres full-text to return the closest matches from the
+            indexed corpus.
           </p>
 
-          {/* Search Input */}
-          <div className="mt-10 flex max-w-2xl mx-auto">
+          {/* Search input */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              runSearch(searchQuery);
+            }}
+            className="mt-8 mx-auto flex max-w-xl gap-2"
+          >
             <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Try: 'how to debounce a React hook without stale closures'"
+                placeholder="e.g. how to debounce a React hook"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 aria-label="Search query"
-                className="h-14 pl-11 pr-4 text-base bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:bg-white/20 focus:border-blue-400"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") runSearch(searchQuery);
-                }}
+                className="h-12 pl-10 pr-4 text-base bg-background border-input focus:border-ring"
               />
             </div>
             <Button
+              type="submit"
               size="lg"
-              type="button"
-              className="ml-3 h-14 px-8 bg-blue-600 hover:bg-blue-700"
-              onClick={() => runSearch(searchQuery)}
+              className="h-12 px-5 shrink-0"
             >
               Search
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
-          </div>
+          </form>
 
-          {/* Example Queries */}
-          <div className="mt-6 flex flex-wrap justify-center gap-2">
-            <span className="text-sm text-slate-400">Try:</span>
+          {/* Example pills */}
+          <div className="mt-5 flex flex-wrap justify-center gap-1.5">
+            <span className="text-xs text-muted-foreground mr-1 self-center">
+              Try:
+            </span>
             {EXAMPLE_QUERIES.map((suggestion) => (
               <button
                 key={suggestion}
                 type="button"
                 onClick={() => runSearch(suggestion)}
-                className="rounded-full bg-white/10 px-3 py-1 text-sm text-slate-300 hover:bg-white/20 transition-colors"
+                className="inline-flex items-center rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-primary/5 transition-colors"
               >
                 {suggestion}
               </button>
             ))}
           </div>
 
-          {/* Stack callouts — honest technical summary, not vanity metrics */}
-          <div className="mt-16 grid grid-cols-2 gap-8 sm:grid-cols-4 text-left sm:text-center">
-            <div>
-              <div className="text-sm font-mono text-blue-300">Retrieval</div>
-              <div className="text-slate-200">Vector + full-text</div>
-              <div className="text-xs text-slate-400 mt-1">
-                Hybrid reranked with configurable weights
-              </div>
-            </div>
-            <div>
-              <div className="text-sm font-mono text-blue-300">Embeddings</div>
-              <div className="text-slate-200">Gemini text-embedding-004</div>
-              <div className="text-xs text-slate-400 mt-1">768 dimensions</div>
-            </div>
-            <div>
-              <div className="text-sm font-mono text-blue-300">Storage</div>
-              <div className="text-slate-200">Postgres + pgvector</div>
-              <div className="text-xs text-slate-400 mt-1">
-                Supabase-hosted; HNSW-ready
-              </div>
-            </div>
-            <div>
-              <div className="text-sm font-mono text-blue-300">Runtime</div>
-              <div className="text-slate-200">NestJS on Vercel</div>
-              <div className="text-xs text-slate-400 mt-1">
-                BullMQ + Upstash Redis for ingestion
-              </div>
-            </div>
+          {/* Keyboard hint */}
+          <div className="mt-4 text-xs text-muted-foreground/70">
+            Tip: press{" "}
+            <kbd className="rounded border border-border bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-foreground">
+              ⌘ K
+            </kbd>{" "}
+            anywhere to focus search.
           </div>
         </div>
-      </div>
 
-      <div className="absolute bottom-0 left-0 right-0 h-20 bg-linear-to-t from-white to-transparent" />
+        {/* Honest stack callouts */}
+        <div className="mt-16 grid grid-cols-2 gap-px sm:grid-cols-4 rounded-lg border border-border overflow-hidden bg-border">
+          <StackCell
+            label="Retrieval"
+            value="Vector + full-text"
+            detail="Hybrid reranked"
+          />
+          <StackCell
+            label="Embeddings"
+            value="Gemini 768-dim"
+            detail="text-embedding-001"
+          />
+          <StackCell
+            label="Storage"
+            value="Postgres + pgvector"
+            detail="Supabase-hosted"
+          />
+          <StackCell
+            label="Runtime"
+            value="NestJS on Vercel"
+            detail="BullMQ + Upstash"
+          />
+        </div>
+      </div>
     </section>
+  );
+}
+
+function StackCell({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="bg-background p-4 text-left">
+      <div className="text-[10px] font-mono uppercase tracking-wider text-primary mb-1">
+        {label}
+      </div>
+      <div className="text-sm font-semibold text-foreground">{value}</div>
+      <div className="text-xs text-muted-foreground mt-0.5">{detail}</div>
+    </div>
   );
 }

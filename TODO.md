@@ -1,215 +1,308 @@
-# CodeSenseiSearch — Roadmap & Open TODOs
+# CodeSenseiSearch — Portfolio polish tracker
 
-Last updated: 2026-04-23.
+Last updated: 2026-04-24.
 
-State as of last commit: backend + frontend hardening complete, 140
-unit / integration tests passing across 15 suites, type-check + lint
-clean, Playwright E2E green. The repo is in industry-standard shape on
-the **code** side. What's left below is the path from "good code in a
-private repo" to "live, demo-able portfolio piece a recruiter can
-actually try."
+State: backend + frontend deployed end-to-end on Vercel. Hybrid search
+(Gemini embeddings + pgvector + Postgres FTS) returns real results
+from a 15-item curated corpus. The infrastructure is solid; what
+follows is the gap between "it works" and "this looks like a
+2.5-year engineer built it on purpose."
 
-> **Conventions for items below:**
-> 🔴 = blocks the public/demo flip
-> 🟡 = high impact, do soon
-> 🟢 = nice to have, polish
+The bar is intentionally hard. This list is what separates a college
+project from a portfolio piece a recruiter at Stripe / Vercel /
+Supabase pauses on.
 
----
-
-## A. Things only you can do (need accounts / decisions)
-
-- [ ] 🔴 **Flip the GitHub repo public.** Currently
-  `github.com/Shailesh93602/CodeSenseiSearch` returns 404. The portfolio
-  card has it allow-listed in
-  [scripts/check-live-urls.mjs](../portfolio_next/scripts/check-live-urls.mjs)
-  `KNOWN_PRIVATE` so the daily cron doesn't spam — remove that entry
-  once flipped.
-
-- [ ] 🔴 **Hosted demo deployment.** Pick a stack:
-  - **Frontend:** Vercel (`apps/web` → port 3010 in dev, but Vercel
-    auto-detects). Set `NEXT_PUBLIC_API_URL` to the live API URL.
-  - **API:** Railway, Fly.io, or Render. Dockerfile is already
-    multi-stage and slim (~150MB image). Build cmd:
-    `docker build -f apps/api/Dockerfile -t codesensei-api .`
-  - **Postgres + pgvector:** Neon, Supabase, or Railway Postgres
-    add-on. All three support `CREATE EXTENSION vector`.
-  - **Redis:** Upstash (serverless, generous free tier) or Railway
-    Redis.
-  - Required env (see [apps/api/src/config/env.ts](apps/api/src/config/env.ts)):
-    `DATABASE_URL`, `JWT_SECRET` (≥32 chars,
-    `openssl rand -hex 32`), `REDIS_HOST` + `REDIS_PORT` (or
-    `REDIS_URL` — TODO add support), `GEMINI_API_KEY`. Optional:
-    `SENTRY_DSN`, `SWAGGER_ENABLED=true` if you want public docs.
-
-- [ ] 🟡 **Bundle a demo corpus.** Pre-embed a small popular repo
-  (suggest `sindresorhus/type-fest` — 200ish .ts files, all
-  function/class declarations, perfect for the AST chunker showcase)
-  and commit the resulting SQL dump under
-  `apps/api/prisma/seed/demo-corpus.sql.gz`. Add a `pnpm demo` script
-  that does `docker-compose up -d`, restores the dump, and starts
-  both apps. Recruiter can clone-and-go without a Gemini key.
-
-- [ ] 🟢 **30-second Loom or screencap.** Embed in README under the
-  "What actually works today" table. Show: typing a natural-language
-  query → ranked file/line results.
+> **Priority:**
+> 🔴 = visible bug or visible polish gap (do first)
+> 🟡 = design / consistency (do next)
+> 🟢 = depth / observability / edge cases (signals seniority)
 
 ---
 
-## B. Code work I can pick up next
+## A. Visible bugs
 
-### B1 — Real-Postgres integration test 🟡
+- [ ] 🔴 **Filters on /search are ornamental.** Source / Language /
+  Sort filters mutate state but don't change what's shown. The state
+  is wired into `apiFilters` in `apps/web/src/components/search-results.tsx:91-104`,
+  but: (1) the API `searchType: 'hybrid'` ignores the `source` /
+  `sortBy` / `dateRange` keys, and (2) the FE never validates the
+  user actually saw the change. Either pass the filters to the
+  controller AND have the controller honor them in the SQL
+  WHERE clause, or hide the filters until they work.
 
-The current
-[`pipeline-integration.spec.ts`](apps/api/src/workers/__tests__/pipeline-integration.spec.ts)
-runs the chunker → worker chain in-process with a Map standing in for
-Postgres. That catches the contract bugs that matter, but doesn't
-exercise the actual `vector(768)` column or the cosine-similarity
-search. Plan:
+- [ ] 🔴 **Filter state isn't in the URL.** Reload or share loses
+  every filter. The `q` query param is read at
+  `apps/web/src/app/search/search-content.tsx:16` but `source`,
+  `language`, `sortBy`, `dateRange` are pure component state. Every
+  filter change should `router.replace` with the encoded state.
 
-- Add `@testcontainers/postgresql` as a devDependency
-- Spin up `postgres:16-alpine` with `CREATE EXTENSION vector` in a
-  pre-test hook
-- Real Prisma client against the testcontainer
-- Mock GeminiService with deterministic vectors (e.g. one-hot per
-  input keyword) so search ranking is verifiable
-- Assert: a query for "function add" ranks the chunk containing the
-  `add` declaration first
+- [ ] 🔴 **Result count is initially "results for X"** before the
+  count loads. The render shouldn't show that header until
+  `totalResults` is set, or it should show a skeleton.
 
-Estimated 2–3 hours including the Prisma migrate-on-test plumbing.
+- [ ] 🔴 **No custom 404.** Hitting any non-existent route shows
+  Next.js's bare default. Need `apps/web/src/app/not-found.tsx`
+  matching site styling.
 
-### B2 — Replace ContentChunkingWorker's remaining inline helpers 🟢
+- [ ] 🔴 **No error boundary.** A thrown render error shows the bare
+  Next dev page. Need `apps/web/src/app/error.tsx` with a friendly
+  retry + GitHub-issue link.
 
-After commit `19a87f0` four pure helpers are shared, but
-`chunkMarkdown`, `chunkCode`, `chunkCodeBlock`, `chunkByParagraphs`,
-and `splitByCodeBlocks` are still inline in
-[`content-chunking.worker.ts`](apps/api/src/workers/content-chunking.worker.ts).
-They're not duplicated elsewhere right now (so there's no audit
-warning), but lifting them would make them unit-testable in
-isolation. Defer until there's a second caller.
+- [ ] 🟡 **Header reimplemented per page.** `/search/search-content.tsx`
+  has its own header, `/docs/page.tsx` has a different gradient
+  header, home uses `<Hero>` with no nav. A single `<Navbar>`
+  component should render on every route via `app/layout.tsx`.
 
-### B3 — Wire request-id propagation to outgoing calls 🟢
+- [ ] 🟡 **No footer anywhere.** Every page just ends. A footer with
+  GitHub link, "Built by Shailesh Chaudhari", privacy / about links
+  is the bare minimum.
 
-`nestjs-pino` attaches a `req.id` to every incoming request log line.
-That id should also flow on outbound calls (`fetch` to Gemini, GitHub
-API, etc.) as an `x-request-id` header so a Sentry trace can be
-linked to the upstream call that triggered it. Use
-[AsyncLocalStorage](https://nodejs.org/api/async_context.html) to
-carry the id through the call stack.
-
-### B4 — Move `/test/*` controller endpoints into proper modules 🟢
-
-[`apps/api/src/test/test.controller.ts`](apps/api/src/test/test.controller.ts)
-is 1460 LOC of "experimental" routes mounted at `/test/...`. Some of
-them duplicate the real `SearchController`. Audit which ones are
-called from anywhere (frontend, scripts) and either:
-- Move the live ones into proper modules (`/admin/*` if admin-gated,
-  `/search/*` if part of the search surface)
-- Delete the rest
-
-### B5 — Add `@Throttle` decorators to ingestion endpoints 🟢
-
-The global throttler covers everything at 60/min. Ingestion (any
-route that triggers `addGitHubIngestionJob` /
-`addStackOverflowIngestionJob`) should be capped tighter — those
-spend GitHub API quota and Gemini tokens. Suggest 5/min per IP.
-
-### B6 — Switch `User.preferences` Json bag → real `UserAuth` model 🟢
-
-Pre-existing tech debt:
-[`auth.service.ts`](apps/api/src/auth/auth.service.ts) reads the
-password hash out of `User.preferences.passwordHash` (a JSON bag) as
-a temporary bridge. The `UserAuth` model in
-[`prisma/schema.prisma`](apps/api/prisma/schema.prisma) is the proper
-target — has dedicated `passwordHash`, `emailVerified`,
-`emailVerificationToken`, `role`, etc. fields. Migration is real
-work: 8 service call sites, a data backfill from `User.preferences`
-to `UserAuth`, and probably a foreign-key constraint linking the two
-tables. Estimated 4–6 hours.
-
-### B7 — Frontend a11y + Lighthouse passes 🟢
-
-The web workspace has zero accessibility tests right now. Add
-`@axe-core/playwright` to the existing E2E suite + run Lighthouse
-against `/` and `/search` in CI (`@lhci/cli`, the same approach the
-portfolio uses). Target ≥90 for a11y + perf + best-practices + SEO.
-
-### B8 — npm audit follow-up 🟢
-
-Cross-repo sweep flagged transitive vulns in tooling deps
-(`react-syntax-highlighter`, picomatch). `pnpm audit` regularly. Pin
-or bump as needed; not blocking.
+- [ ] 🟡 **Search bar placeholder is too long for mobile.**
+  `apps/web/src/components/search-bar.tsx:136` placeholder gets
+  truncated to mush on iPhone. Shorten or show different copy below
+  sm breakpoint.
 
 ---
 
-## C. Nice-to-have observability + docs
+## B. Design system inconsistency
 
-- [ ] 🟢 **Prometheus `/metrics` endpoint.** `prom-client` is not
-  installed yet; add it + expose `/metrics` (gated behind an
-  `Authorization: Bearer ${METRICS_TOKEN}` so it's not public).
-  Capture: HTTP request duration histogram, active BullMQ job count
-  per queue, embedding latency, Gemini retry count.
+The audit catalogued 60+ small things; the pattern is the same:
+no shared design tokens, every component invents its own padding /
+shadow / radius / color.
 
-- [ ] 🟢 **Grafana / Loki dashboard.** Once metrics are exposed.
+- [ ] 🟡 **Adopt the "house style" used across the owner's other
+  projects.** Five sibling repos (portfolio_next, EduScale, KhataGO,
+  devtrack, CareerGlyph) consistently use:
+  - **Font:** Inter (currently we use Geist — switch).
+  - **Dark mode:** `class` strategy via next-themes, with FOUC-prevention
+    inline script in `<head>`.
+  - **Navbar:** sticky, blurred backdrop, `z-50`, logo-left, nav-right,
+    theme toggle in top-right.
+  - **Cards:** `rounded-lg` (8-12px), subtle border, hover lift.
+  - **Spacing:** consistent 4 / 6 / 8 scale, no random `gap-3` mixed
+    with `gap-5`.
+  - **Primary accent:** purple/blue. Pick one and use a CSS variable.
 
-- [ ] 🟢 **Bull dashboard.** `@bull-board/api` + `@bull-board/express`
-  to inspect queues at `/api/admin/queues`. Auth-guarded.
+- [ ] 🟡 **No dark mode at all.** `globals.css` defines `.dark` tokens
+  but no component uses `dark:` classes and there's no toggle.
+  Sibling projects all support it. Implement.
 
-- [ ] 🟢 **Architecture diagram in README as a real SVG** (currently
-  ASCII art — fine but Mermaid would render in GitHub).
+- [ ] 🟡 **Color tokens, not Tailwind primitives, in custom code.**
+  Ban `bg-blue-100 text-blue-700` from JSX — those should be design
+  tokens like `bg-accent text-accent-foreground` defined once in
+  `tailwind.config.ts`. Currently scattered across:
+  - `search-filters.tsx:68`
+  - `search-results.tsx:73-92`
+  - `features.tsx:25-65`
 
-- [ ] 🟢 **Example queries in README** with actual response snippets.
-  Easier to land once the demo corpus is bundled (B2 above).
+- [ ] 🟡 **Buttons are inconsistent.** Hero uses `size="lg" h-14`,
+  search uses `size="sm" h-10`, filters use `size="sm"`. Define a
+  size system in the Button component and use it.
+
+- [ ] 🟡 **Card aesthetic is mixed.** Same hierarchy renders with
+  different shadows (`hover:shadow-lg` vs `hover:shadow-md` vs
+  `shadow-sm`) across `features.tsx`, `search-results.tsx`,
+  `docs/page.tsx`. Pick one.
+
+- [ ] 🟡 **Heading hierarchy not codified.** `h1`, `h2`, `h3` use
+  different sizes on different pages. Define a typography scale in
+  `globals.css` (or use `@tailwindcss/typography` properly).
+
+- [ ] 🟡 **Favicon is the Next.js default.** Replace with a real
+  favicon set (16/32/180/512 px), apple-touch-icon, manifest.json
+  themed properly.
 
 ---
 
-## D. Operational
+## C. UX polish
 
-- [ ] 🟢 **Graceful shutdown.** Add `app.enableShutdownHooks()` in
-  [main.ts](apps/api/src/main.ts) so SIGTERM closes BullMQ workers
-  cleanly (currently they may leave jobs in-flight).
+- [ ] 🟡 **Loading skeletons that match the result card shape.**
+  Currently a generic spinner appears in dead center. Sibling
+  projects use shimmer-skeleton cards.
 
-- [ ] 🟢 **DB connection pooling.** Tune Prisma's connection pool
-  for whatever Postgres host you pick — Supabase pgbouncer mode
-  needs `?pgbouncer=true` in the connection string.
+- [ ] 🟡 **Empty state for "no corpus matches your query" needs a
+  helpful nudge.** Right now it just says "no results, try different
+  keywords." Better: list the 5 example pills as clickable chips, or
+  show stats (e.g. "indexed 15 documents — try one of these topics").
 
-- [ ] 🟢 **Request body size limit.** Currently unbounded. `express`
-  default is 100KB; explicitly cap to something like 1MB via
-  `app.use(express.json({ limit: '1mb' }))`.
+- [ ] 🟡 **Cmd+K / Ctrl+K to focus search input.** Industry-standard
+  shortcut. Easy win — wire a global keydown listener in `<Navbar>`.
 
-- [ ] 🟢 **CORS allowlist instead of single origin.** Today
-  `FRONTEND_URL` is a single string. If you deploy preview branches
-  on Vercel, each gets a unique URL and gets CORS-blocked. Switch to
-  an env-driven array or a regex.
+- [ ] 🟡 **`/` to focus search.** Same wire, just an alternate key
+  binding. GitHub uses this; users will try it.
+
+- [ ] 🟡 **`Esc` to clear query and close suggestions.** Already
+  partially wired in search-bar; verify across the page.
+
+- [ ] 🟡 **Syntax highlighting on code blocks in results.**
+  Prism.js is in `package.json` but unused. Pick shiki or
+  prismjs and wire into the result-card body when the chunk is
+  recognized as code. The current `<pre>` looks like `cat foo.js`.
+
+- [ ] 🟡 **Copy-to-clipboard toast.** Currently the button text
+  flips to "Copied" for ~2s with no other feedback. A small toast
+  ("Copied snippet to clipboard") feels more deliberate.
+
+- [ ] 🟡 **Hover states on every interactive element.** Filter
+  buttons in `search-filters.tsx` have `hover:bg-slate-100` but no
+  `focus-visible` ring. Define a global `focus-visible` style.
+
+- [ ] 🟡 **Focus management.** After a search submits, focus should
+  go to the first result heading. After clearing, back to the input.
+
+- [ ] 🟢 **Keyboard navigation through result cards.** ↓ / ↑ to move
+  between results, Enter to copy. Industry-standard for search UIs.
+
+- [ ] 🟢 **Result-card click → permalink.** Right now the card is
+  a static block. Click → `/search/result/{id}` with the chunk
+  isolated, shareable URL, "expand context" button.
 
 ---
 
-## Done in this session (for posterity)
+## D. Result-card quality (the thing recruiters actually see)
 
-24 commits between 4/22 evening and 4/23 morning. Major themes:
+- [ ] 🟡 **Add real source metadata to the card.** Currently we
+  show similarity / score / language. Real search UIs (Algolia,
+  DocSearch) also show: source URL, breadcrumb of where it lives,
+  excerpt with the matched-term highlighted, "last updated" date.
 
-- **Worked features:** Implemented `EmbeddingGenerationWorker` (was a
-  TODO stub), AST-aware code chunker via TS compiler API, fixed
-  `pgvector` dim 1536 → 768, added `JwtAuthGuard` to admin, added
-  `@Throttle` to auth, `@nestjs/swagger`, Zod env validation, real
-  health endpoint, structured logging via `nestjs-pino`, Sentry
-  exception filter, helmet security headers, GitHub Actions CI,
-  multi-stage Dockerfile.
-- **Test surface:** 28 → 140 tests across 15 suites. Added unit tests
-  for chunker, embedding worker, content chunker, chunking helpers,
-  retry/backoff, env validation, health endpoint, search controller,
-  auth controller (integration with throttler), pipeline integration,
-  Sentry filter, frontend components (vitest + RTL), and frontend E2E
-  (Playwright).
-- **Bugs found via tests:** Two `chunkPlainText` infinite-loop /
-  unbounded-output bugs in the original code, both fixed.
-- **Code organization:** Split `base.worker.ts` (1669 LOC monolith)
-  into 7 dedicated worker files + a 20-line re-export shim.
-  Consolidated 4 duplicated chunker helpers into
-  `chunking-helpers.ts`.
-- **Honesty pass:** Rewrote README to match what's actually shipped;
-  deleted 8 stale "Phase 2 complete" docs that contradicted the code.
-- **Repo hygiene:** Removed 891-line dead `mock-data.ts`, deleted
-  `openai.service.ts.backup`, gitignored Playwright artifacts and
-  `quality.md`.
+- [ ] 🟡 **Match-term highlighting in the snippet.** Bold the query
+  terms in the result body using `<mark>`. This is a 30-line
+  function but visually screams "production-grade search."
 
-See `git log --oneline 4c508d0..main` for the full history.
+- [ ] 🟡 **Truncate-with-fade for long results.** Current `<pre>`
+  shows the whole 800-word answer inline. Better: show first ~10
+  lines with a fade gradient and "Expand" button.
+
+- [ ] 🟡 **Per-source visual differentiation.** GitHub results get a
+  GitHub icon + repo path; Stack Overflow gets the SO orange + score;
+  Documentation gets the doc icon + section path. Right now they
+  look identical except for one badge.
+
+---
+
+## E. Observability + edge cases (the seniority signal)
+
+- [ ] 🟢 **Wire the Web Vitals reporter to a real sink.**
+  `lib/analytics.ts` defines `trackCoreWebVitals()` and
+  `WebVitalsReporter.tsx` exists but neither is imported anywhere.
+  Either wire to Vercel Analytics + Speed Insights (one-line add) or
+  delete the dead code.
+
+- [ ] 🟢 **Sentry SDK initialization in API.** `nestjs-pino` +
+  `@sentry/node` are installed but Sentry is never actually
+  initialized. A real engineer ships error reporting on day one.
+
+- [ ] 🟢 **Real rate-limit feedback on the FE.** Currently a 429
+  shows as a generic "Search failed". Detect 429, show a friendly
+  "Slow down — 60 req/min" message with a countdown.
+
+- [ ] 🟢 **Network-error retry button.** When the API is cold-starting,
+  show "Backend is waking up, try again in a moment" with auto-retry
+  after 5s.
+
+- [ ] 🟢 **Sentry for the FE too.** Same reason as the API.
+
+- [ ] 🟢 **OpenTelemetry traces on the API.** Hybrid search path is
+  fan-out (vector + fulltext in parallel + rerank). Tracing makes
+  the architecture diagram credible.
+
+- [ ] 🟢 **Honest performance numbers in the docs.** `/docs/api`
+  currently uses synthetic round-numbers in the response examples.
+  Replace with actual P50 / P95 latency from production measurements.
+
+---
+
+## F. Demo / story-telling
+
+- [ ] 🟡 **A short Loom (3 min).** Walk: home → click pill → see
+  result → switch filter → keyboard shortcut → /docs. Recruiters
+  watch 30 seconds; design the first 30s carefully.
+
+- [ ] 🟡 **README front-and-center summary.** Above the fold:
+  one-line pitch, live demo link, animated GIF of the search flow,
+  tech stack badges. Currently the README starts with monorepo
+  setup notes.
+
+- [ ] 🟡 **A "How it works" page** (`/architecture`) with the
+  diagram + "what happens when you press Search" sequence the
+  features section already teases. One scrollable narrative page is
+  more compelling than a bulleted card grid.
+
+- [ ] 🟢 **Blog post: "How I built it."** 1,500 words, published on
+  the owner's portfolio blog. Links from this repo's README and
+  from the portfolio card. Recruiters Google candidates — give them
+  something substantive to find.
+
+---
+
+## G. Tech debt / dead code
+
+- [ ] 🟢 **Drop `@monaco-editor/react`** from `package.json` — 2 MB
+  bundle weight, never imported.
+
+- [ ] 🟢 **Drop dead analytics code** — `lib/analytics.ts` exports
+  `Analytics`, `useSearchTracking`, `trackCoreWebVitals` — none are
+  imported. Either wire them or delete them.
+
+- [ ] 🟢 **Reconcile two search-service implementations.**
+  `apps/api/src/services/search.service.ts` and
+  `apps/api/src/search/services/hybrid-search.service.ts` both
+  exist; only one is used. The unused one is confusing for anyone
+  reading the codebase.
+
+- [ ] 🟢 **Strict TypeScript everywhere.** A few `as any` and `as
+  unknown as` casts remain — search for them and either fix the
+  type or annotate why the cast is necessary.
+
+---
+
+## H. Done (since this rewrite started)
+
+- [x] Hybrid search returns real results for the example pills
+  (similarity 0.77-0.83).
+- [x] Switched retired Gemini `text-embedding-004` to
+  `gemini-embedding-001` with `outputDimensionality: 768`.
+- [x] Result renderer handles the actual chunk shape (no more
+  "Cannot read properties of undefined").
+- [x] Source label shows correctly (Documentation badge instead of
+  the wrong "Stack Overflow").
+- [x] Result count + search time render correctly.
+- [x] Migration history fixed (renamed broken `084050` migration to
+  run after baseline; documented in `migrate-prod.sh`).
+- [x] `migrate-prod.sh` parses dotenv files robustly + accepts
+  pass-through subcommand args.
+- [x] `GITHUB_CLIENT_ID` not set no longer crashes the API on
+  cold start.
+- [x] CSP allows the configured API origin (was hardcoded to a
+  placeholder domain).
+- [x] WebVitalsReporter 404 + apple-touch-icon 404 + grid.svg 404
+  cleaned up.
+- [x] /javascript /python /react /languages /resources fake SEO
+  pages deleted; sitemap trimmed to real routes.
+- [x] Hero / Features / CTA rewritten with honest content (no fake
+  metrics, no nonexistent SDK names, no "trusted by thousands of
+  developers").
+- [x] /docs, /docs/api, /docs/integration rewritten against the
+  real API contract.
+- [x] Sign-In button replaced with a GitHub link.
+- [x] Keepalive GitHub Action wired with `API_HEALTH_URL`.
+
+---
+
+## How to read this list
+
+Items in **A** are bugs a recruiter will hit on first click — fix
+those today.
+
+Items in **B** and **C** are what makes the difference between
+"undergrad capstone" and "engineer who's shipped." Group them; do
+them as one focused design pass over a single sitting, not piecemeal.
+
+Items in **D**, **E**, **F** are the seniority signals — they're
+what the candidate-vs-thousands-of-other-candidates differentiator
+looks like. Pick a couple and go deep rather than touching all of
+them shallowly.
+
+Items in **G** are housekeeping. Do them last (or whenever you're
+in the relevant file for another reason).

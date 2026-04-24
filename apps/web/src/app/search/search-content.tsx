@@ -1,162 +1,206 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import Link from "next/link";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SearchBar } from "@/components/search-bar";
-import { SearchFilters } from "@/components/search-filters";
+import { SearchFilters, type Filters } from "@/components/search-filters";
 import { SearchResults } from "@/components/search-results";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Filter } from "lucide-react";
+import { Filter, X } from "lucide-react";
+
+const DEFAULT_FILTERS: Filters = {
+  source: "all",
+  language: "all",
+  sortBy: "relevance",
+  dateRange: "all",
+};
+
+/**
+ * Read filters from URL search params so reload + share keep state.
+ * `q` is also read here and used to seed the SearchBar's controlled
+ * input.
+ */
+function readFiltersFromParams(params: URLSearchParams): Filters {
+  return {
+    source: params.get("source") ?? DEFAULT_FILTERS.source,
+    language: params.get("language") ?? DEFAULT_FILTERS.language,
+    sortBy: params.get("sortBy") ?? DEFAULT_FILTERS.sortBy,
+    dateRange: params.get("dateRange") ?? DEFAULT_FILTERS.dateRange,
+  };
+}
+
+function buildSearchUrl(query: string, filters: Filters): string {
+  const params = new URLSearchParams();
+  if (query.trim()) params.set("q", query.trim());
+  if (filters.source !== DEFAULT_FILTERS.source) params.set("source", filters.source);
+  if (filters.language !== DEFAULT_FILTERS.language) params.set("language", filters.language);
+  if (filters.sortBy !== DEFAULT_FILTERS.sortBy) params.set("sortBy", filters.sortBy);
+  if (filters.dateRange !== DEFAULT_FILTERS.dateRange) params.set("dateRange", filters.dateRange);
+  const qs = params.toString();
+  return qs ? `/search?${qs}` : "/search";
+}
 
 export default function SearchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const qParam = searchParams.get('q');
-  const [query, setQuery] = useState(qParam || "");
+
+  const initialFilters = useMemo(
+    () => readFiltersFromParams(searchParams),
+    [searchParams],
+  );
+
+  const [query, setQuery] = useState(searchParams.get("q") ?? "");
+  const [filters, setFilters] = useState<Filters>(initialFilters);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
+  const hasActiveFilters = useMemo(
+    () =>
+      filters.source !== "all" ||
+      filters.language !== "all" ||
+      filters.sortBy !== "relevance" ||
+      filters.dateRange !== "all",
+    [filters],
+  );
+
+  /** Persist a query+filter pair into the URL. */
+  const syncToUrl = useCallback(
+    (q: string, f: Filters) => {
+      router.replace(buildSearchUrl(q, f), { scroll: false });
+    },
+    [router],
+  );
 
   const handleSubmitQuery = useCallback(() => {
-    const trimmed = query.trim();
-    if (!trimmed) return;
-    // Mirror query into the URL so reload / share keeps the state.
-    // SearchResults watches `query` and fires the API call; we don't
-    // need to trigger it again here.
-    router.replace(`/search?q=${encodeURIComponent(trimmed)}`);
-  }, [query, router]);
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [filters, setFilters] = useState({
-    source: "all", // all, github, stackoverflow, docs
-    language: "all",
-    sortBy: "relevance", // relevance, date, stars
-    dateRange: "all" // all, week, month, year
-  });
+    syncToUrl(query, filters);
+  }, [query, filters, syncToUrl]);
 
-  const hasActiveFilters = Object.values(filters).some(value => value !== "all" && value !== "relevance");
+  const handleFiltersChange = useCallback(
+    (next: Filters) => {
+      setFilters(next);
+      syncToUrl(query, next);
+    },
+    [query, syncToUrl],
+  );
+
+  const clearFilters = useCallback(() => {
+    setFilters(DEFAULT_FILTERS);
+    syncToUrl(query, DEFAULT_FILTERS);
+    setMobileFiltersOpen(false);
+  }, [query, syncToUrl]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-50 shadow-sm">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-14 sm:h-16 items-center justify-between">
-            <div className="flex items-center gap-4 sm:gap-8">
-              <Link href="/" className="text-lg sm:text-xl font-bold text-slate-900">
-                CodeSensei<span className="text-blue-600">Search</span>
-              </Link>
-              <nav className="hidden md:flex space-x-4">
-                <Link href="/" className="text-slate-600 hover:text-slate-900 px-3 py-2 text-sm font-medium transition-colors">
-                  Home
-                </Link>
-                <Link href="/search" className="text-blue-600 px-3 py-2 text-sm font-medium">
-                  Search
-                </Link>
-                <Link href="/docs" className="text-slate-600 hover:text-slate-900 px-3 py-2 text-sm font-medium transition-colors">
-                  Docs
-                </Link>
-              </nav>
+    <div className="bg-background">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+        <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+          {/* Desktop Filters Sidebar */}
+          <aside className="hidden md:block w-64 shrink-0">
+            <div className="sticky top-20">
+              <SearchFilters
+                filters={filters}
+                onFiltersChange={handleFiltersChange}
+                onClear={hasActiveFilters ? clearFilters : undefined}
+              />
             </div>
-            <div className="flex items-center gap-2 sm:gap-4">
-              {/* Mobile Filter Toggle */}
+          </aside>
+
+          {/* Search Results column */}
+          <div className="flex-1 min-w-0">
+            <div className="mb-5 flex items-start gap-2">
+              <div className="flex-1">
+                <SearchBar
+                  query={query}
+                  onQueryChange={setQuery}
+                  onSearch={handleSubmitQuery}
+                />
+              </div>
               <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
                 <SheetTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="md:hidden relative"
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="md:hidden h-12 w-12 relative shrink-0"
+                    aria-label="Open filters"
                   >
                     <Filter className="h-4 w-4" />
                     {hasActiveFilters && (
-                      <span className="absolute -top-1 -right-1 h-2 w-2 bg-blue-600 rounded-full" />
+                      <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
                     )}
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-80 p-0">
-                  <div className="p-4 border-b">
-                    <h2 className="text-lg font-semibold">Filters</h2>
+                  <div className="p-4 border-b border-border">
+                    <h2 className="text-base font-semibold">Filters</h2>
                   </div>
                   <div className="p-4">
-                    <SearchFilters filters={filters} onFiltersChange={setFilters} />
+                    <SearchFilters
+                      filters={filters}
+                      onFiltersChange={handleFiltersChange}
+                      onClear={hasActiveFilters ? clearFilters : undefined}
+                    />
                   </div>
                 </SheetContent>
               </Sheet>
-              
-              <a
-                href="https://github.com/Shailesh93602/CodeSenseiSearch"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hidden sm:inline-flex text-slate-600 hover:text-slate-900 text-sm font-medium transition-colors"
-              >
-                GitHub
-              </a>
             </div>
-          </div>
-        </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        <div className="flex flex-col md:flex-row gap-4 md:gap-8">
-          {/* Desktop Filters Sidebar */}
-          <aside className="hidden md:block w-64 shrink-0">
-            <div className="sticky top-24">
-              <SearchFilters filters={filters} onFiltersChange={setFilters} />
-            </div>
-          </aside>
-
-          {/* Search Results */}
-          <div className="flex-1 min-w-0">
-            <div className="mb-4 sm:mb-6">
-              <SearchBar
-                query={query}
-                onQueryChange={setQuery}
-                onSearch={handleSubmitQuery}
-              />
-            </div>
-            
-            {/* Mobile Filter Summary */}
+            {/* Active-filter chip strip — shows on every viewport. */}
             {hasActiveFilters && (
-              <div className="md:hidden mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-blue-700 font-medium">Filters applied</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setMobileFiltersOpen(true)}
-                    className="text-blue-600 h-auto p-1"
-                  >
-                    Edit filters
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {filters.source !== "all" && (
-                    <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">
-                      {filters.source}
-                    </span>
-                  )}
-                  {filters.language !== "all" && (
-                    <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">
-                      {filters.language}
-                    </span>
-                  )}
-                  {filters.sortBy !== "relevance" && (
-                    <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">
-                      Sort: {filters.sortBy}
-                    </span>
-                  )}
-                  {filters.dateRange !== "all" && (
-                    <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">
-                      {filters.dateRange}
-                    </span>
-                  )}
-                </div>
+              <div className="mb-5 flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-muted-foreground">Filters:</span>
+                {filters.source !== "all" && (
+                  <FilterChip
+                    label={`Source: ${filters.source}`}
+                    onClear={() => handleFiltersChange({ ...filters, source: "all" })}
+                  />
+                )}
+                {filters.language !== "all" && (
+                  <FilterChip
+                    label={`Language: ${filters.language}`}
+                    onClear={() => handleFiltersChange({ ...filters, language: "all" })}
+                  />
+                )}
+                {filters.sortBy !== "relevance" && (
+                  <FilterChip
+                    label={`Sort: ${filters.sortBy}`}
+                    onClear={() => handleFiltersChange({ ...filters, sortBy: "relevance" })}
+                  />
+                )}
+                {filters.dateRange !== "all" && (
+                  <FilterChip
+                    label={`Date: ${filters.dateRange}`}
+                    onClear={() => handleFiltersChange({ ...filters, dateRange: "all" })}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-muted-foreground hover:text-foreground underline underline-offset-2"
+                >
+                  Clear all
+                </button>
               </div>
             )}
-            
+
             <SearchResults query={query} filters={filters} />
           </div>
         </div>
-      </main>
+      </div>
     </div>
+  );
+}
+
+function FilterChip({ label, onClear }: { label: string; onClear: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground">
+      {label}
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label={`Remove ${label} filter`}
+        className="rounded-full hover:bg-background/60"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </span>
   );
 }
