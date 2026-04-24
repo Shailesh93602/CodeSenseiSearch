@@ -4,6 +4,42 @@ Items move here from `TODO.md` as they ship. Most-recent at the top.
 
 ---
 
+## 2026-04-24 — Corpus expansion: cross-language wave (90 entries) — past halfway
+
+- 4 sub-agents drafted batches 018–021 in parallel against fresh
+  shallow clones (`/tmp/oss/tokio`, `/tmp/oss/gin`,
+  `/tmp/oss/fastapi`, `/tmp/oss/pgvector`). All 90 file paths
+  verified.
+- Batch 018 (Tokio, 25): #[tokio::main] expansion, select! biased
+  fairness + cancel-safety, oneshot/mpsc/broadcast/watch/Notify/
+  Semaphore primitives, Sleep::reset, timeout checked-before-poll,
+  interval MissedTickBehavior (Burst/Delay/Skip), spawn_blocking
+  pool sizing, JoinSet drop-aborts-everything, AsyncRead
+  cancel-safety nuance, LocalSet for !Send, pin! vs Box::pin.
+- Batch 019 (Gin, 20): middleware ordering + abortIndex,
+  Recovery EPIPE special-case + header scrubbing, c.Param vs
+  c.Query lazy cache, Bind vs ShouldBind + MaxBytesError 413,
+  BasicAuth crypto/subtle constant-time, FormFile path-traversal
+  guard, Hijack-based WebSocket upgrade, radix tree priority
+  ordering + sync.Pool contexts.
+- Batch 020 (FastAPI, 25): Depends sub-deps + get_dependant
+  recursion, yield-deps via AsyncExitStack, async def vs def
+  threadpool dispatch, OAuth2PasswordBearer JWT injection,
+  middleware order + AsyncExitStack, lifespan async-cm replacing
+  on_startup/shutdown, pydantic v2 bridge in `_compat/v2.py`.
+- Batch 021 (pgvector, 20): vector internal storage, L2 +
+  auto-vectorisation + sqrt-at-boundary, <#> NEGATIVE inner
+  product Postgres ASC quirk, cosine sqrt(a*b) trick + clamp,
+  binary_quantize 8-float bit-pack, l2_normalize zero-norm
+  guard, opclasses (l2/cosine/ip), halfvec F16C dispatch,
+  sparsevec sorted-indices layout, HNSW build phases +
+  maintenance_work_mem NOTICE, IVFFlat probes recall-vs-latency,
+  iterative scan + max_scan_tuples, Reciprocal Rank Fusion SQL.
+- Seed: 4 chunked invocations, 90 new embeddings. 9/10 smoke-test
+  queries return precise hits (the one near-miss surfaced a
+  reasonable adjacent entry).
+- New languages indexed: c, rust, go, python.
+
 ## 2026-04-24 — Corpus expansion: 4 more OSS batches (105 entries)
 
 - 4 sub-agents drafted batches 014–017 in parallel against fresh

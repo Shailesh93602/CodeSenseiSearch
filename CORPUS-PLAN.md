@@ -10,11 +10,11 @@ empty state. This document is the playbook for getting there.
 
 | Source             | contentType                | Target | Status     |
 | ------------------ | -------------------------- | ------ | ---------- |
-| GitHub             | `REPOSITORY_FILE`          | 1000   | 435/1000   |
+| GitHub             | `REPOSITORY_FILE`          | 1000   | 525/1000   |
 | Stack Overflow     | `STACKOVERFLOW_*`          | 1000   | 0/1000     |
 | Documentation      | `DOCUMENTATION_PAGE`       |  500   | 15/500     |
 | Blog               | `BLOG_POST`                |  100   | 0/100      |
-| **Total**          |                            | 2600   | 450/2600   |
+| **Total**          |                            | 2600   | 540/2600   |
 
 Done in **batches of ~30**, one or two batches per session. ~85 total
 batches → ~10–15 working sessions to first milestone (1000 GitHub).
@@ -156,11 +156,14 @@ is idempotent and cheap.
 | 015 | github-015-async-patterns.ts          | p-queue concurrency/priority/rate-limit, AbortSignal, Promise.all/allSettled/race/any, withResolvers, async iterators, scheduler ordering | ✅ shipped (25) |
 | 016 | github-016-vitest-testing.ts          | Vitest (config inheritance, vi.mock hoisting, fake-timers + sinon, fork/thread/vmThreads pools, sharding, test.extend fixtures) | ✅ shipped (25) |
 | 017 | github-017-radix-primitives.ts        | Radix UI (Dialog focus trap, Popper @floating-ui, Toast region, Slot prop merging, useControllableState, useFocusGuards, composeRefs) | ✅ shipped (25) |
-| 018 | github-018-rust-patterns.ts           | Rc/Arc/Box, traits, async/await tokio, error handling with `?`, lifetimes, ownership | pending |
-| 019 | github-019-go-patterns.ts             | Goroutines, channels, context, error wrapping, table-driven tests, sync.Pool | pending |
-| 020 | github-020-python-patterns.ts         | asyncio TaskGroup, dataclasses, typing.Protocol, contextlib, structural typing | pending |
-| 021 | github-021-postgres-patterns.ts       | Indexes (BTree/GIN/HNSW), EXPLAIN ANALYZE, JSONB, full-text, window functions, partitioning | pending |
-| 022 | github-022-devops-cicd.ts             | GitHub Actions composite actions, matrix builds, caching, OIDC, Docker layer caching | pending |
+| 018 | github-018-tokio-rust.ts              | Tokio (spawn+JoinHandle abort, select! biased fairness, oneshot/mpsc/broadcast/watch/Notify, MissedTickBehavior, JoinSet, spawn_blocking) | ✅ shipped (25) |
+| 019 | github-019-gin-go.ts                  | Gin (middleware ordering + abortIndex, Recovery EPIPE, BasicAuth crypto/subtle, Hijack websocket, radix tree internals) | ✅ shipped (20) |
+| 020 | github-020-fastapi-python.ts          | FastAPI (Depends sub-deps, yield-deps + AsyncExitStack, async vs def threadpool, OAuth2PasswordBearer, lifespan, pydantic v2 bridge) | ✅ shipped (25) |
+| 021 | github-021-pgvector-postgres.ts       | pgvector (vector storage layout, distance ops + COMMUTATOR, opclasses, halfvec F16C, sparsevec, HNSW build phases, Reciprocal Rank Fusion) | ✅ shipped (20) |
+| 022 | github-022-github-actions.ts          | Composite actions, matrix builds, caching, OIDC, reusable workflows | pending |
+| 023 | github-023-drizzle-orm.ts             | Drizzle (schema-first, prepared statements, relational queries, migrations) | pending |
+| 024 | github-024-sentry-otel.ts             | Sentry SDK + OpenTelemetry (instrumentation, sampling, baggage, error fingerprinting) | pending |
+| 025 | github-025-jose-jwt.ts                | jose JWT (sign/verify, JWKS, key rotation, RFC compliance edge cases) | pending |
 | ... | (more batches for k8s, security, build tooling) | toward 1000 GitHub                  | pending |
 
 That's 300 entries to start — covers the most-likely "react",
