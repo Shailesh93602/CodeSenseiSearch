@@ -8,13 +8,13 @@ empty state. This document is the playbook for getting there.
 
 ## Targets
 
-| Source             | contentType                | Target | Status |
-| ------------------ | -------------------------- | ------ | ------ |
-| GitHub             | `REPOSITORY_FILE`          | 1000   | 0/1000 |
-| Stack Overflow     | `STACKOVERFLOW_*`          | 1000   | 0/1000 |
-| Documentation      | `DOCUMENTATION_PAGE`       |  500   | 15/500 |
-| Blog               | `BLOG_POST`                |  100   | 0/100  |
-| **Total**          |                            | 2600   | 15/2600 |
+| Source             | contentType                | Target | Status   |
+| ------------------ | -------------------------- | ------ | -------- |
+| GitHub             | `REPOSITORY_FILE`          | 1000   | 30/1000  |
+| Stack Overflow     | `STACKOVERFLOW_*`          | 1000   | 0/1000   |
+| Documentation      | `DOCUMENTATION_PAGE`       |  500   | 15/500   |
+| Blog               | `BLOG_POST`                |  100   | 0/100    |
+| **Total**          |                            | 2600   | 45/2600  |
 
 Done in **batches of ~30**, one or two batches per session. ~85 total
 batches → ~10–15 working sessions to first milestone (1000 GitHub).
@@ -137,18 +137,19 @@ is idempotent and cheap.
 
 ## Roadmap (first 10 GitHub batches)
 
-| #   | File                                  | Theme                                     |
-| --- | ------------------------------------- | ----------------------------------------- |
-| 001 | github-001-react-hooks.ts             | React hooks (useState, useEffect, useMemo, etc.) |
-| 002 | github-002-react-patterns.ts          | Component patterns, suspense, error boundaries |
-| 003 | github-003-nextjs-app-router.ts       | Server components, layouts, server actions |
-| 004 | github-004-typescript-utility-types.ts| Pick / Omit / infer / template literal types |
-| 005 | github-005-node-streams.ts            | streams, pipelines, backpressure |
-| 006 | github-006-async-patterns.ts          | Promise composition, AbortController, retry |
-| 007 | github-007-prisma-patterns.ts         | Prisma query patterns, transactions, raw SQL |
-| 008 | github-008-postgres-patterns.ts       | Indexes, EXPLAIN, JSONB, full-text |
-| 009 | github-009-bullmq-redis.ts            | BullMQ workers, retry, DLQ, Redis patterns |
-| 010 | github-010-testing-patterns.ts        | Jest, Vitest, MSW, integration testing |
+| #   | File                                  | Theme                                     | Status   |
+| --- | ------------------------------------- | ----------------------------------------- | -------- |
+| 001 | github-001-react-hooks.ts             | React hooks + state libs (Zustand, Jotai, SWR, Query, RHF, Next.js, shadcn) | ✅ shipped (30) |
+| 002 | github-002-typescript-types.ts        | Pick/Omit/infer, mapped types, template literal types, satisfies, branded types | pending |
+| 003 | github-003-nextjs-app-router.ts       | Layouts, parallel routes, intercepts, middleware, fetch caching, Suspense in RSC | pending |
+| 004 | github-004-async-patterns.ts          | AbortController, Promise.all/allSettled, p-queue, retry/backoff, debounce | pending |
+| 005 | github-005-node-streams.ts            | Readable/Writable streams, pipelines, backpressure, stream.pipeline vs pipe | pending |
+| 006 | github-006-prisma-patterns.ts         | findUnique vs findFirst, transactions, raw SQL, JSON queries, pagination | pending |
+| 007 | github-007-postgres-patterns.ts       | Indexes (BTree/GIN/HNSW), EXPLAIN ANALYZE, JSONB, full-text, window functions | pending |
+| 008 | github-008-bullmq-redis.ts            | Workers, queues, retry, DLQ, repeatable jobs, Redis SET NX EX, Redlock | pending |
+| 009 | github-009-testing-patterns.ts        | Jest setup, Vitest, MSW handlers, Playwright fixtures, supertest | pending |
+| 010 | github-010-rust-patterns.ts           | Rc/Arc/Box, traits, async/await tokio, error handling with `?`, lifetimes | pending |
+| ... | (future batches for python, go, devops, etc.) |                                | pending |
 
 That's 300 entries to start — covers the most-likely "react",
 "nextjs", "typescript", "async", "database", "redis" queries.

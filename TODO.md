@@ -202,6 +202,22 @@ Supabase pauses on.
 
 ---
 
+## I. Corpus expansion progress
+
+See [CORPUS-PLAN.md](./CORPUS-PLAN.md) for the strategy + per-batch
+playbook. Current state:
+
+| Source         | Target | Have    |
+| -------------- | ------ | ------- |
+| GitHub         | 1000   | 30      |
+| Stack Overflow | 1000   | 0       |
+| Documentation  | 500    | 15      |
+| Blog           | 100    | 0       |
+
+Next session: write `github-002-typescript-types.ts` (30 entries on
+TypeScript type-system patterns from `microsoft/TypeScript`,
+`Effect-TS/effect`, `vercel/next.js`, etc).
+
 ## H. Done (since this rewrite started)
 
 - [x] Hybrid search returns real results for the example pills
@@ -232,6 +248,13 @@ Supabase pauses on.
   real API contract.
 - [x] Sign-In button replaced with a GitHub link.
 - [x] Keepalive GitHub Action wired with `API_HEALTH_URL`.
+- [x] **Corpus batch system shipped.** SeedItem types, ALL_BATCHES
+  index, Repository/Question auto-upsert, hash-based dedup. Adding
+  a new batch is one TS file + one import line — no DB plumbing.
+- [x] **github-001-react-hooks.ts (30 entries) live.** Source filter
+  "GitHub" returns 14 hits for "react", 9 for "useState",
+  similarity 0.72 on the top vector match. Empty-state for the
+  source no longer fires.
 
 ---
 
