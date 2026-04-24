@@ -16,18 +16,84 @@ const DEFAULT_FILTERS: Filters = {
   dateRange: "all",
 };
 
+// Allowed values per filter — anything not in this set falls back to
+// the default so a hand-typed `?source=github_or_typo` doesn't put the
+// UI in an unrenderable state.
+const ALLOWED_SOURCE = new Set(["all", "github", "stackoverflow", "docs"]);
+const ALLOWED_LANGUAGE = new Set([
+  "all",
+  "javascript",
+  "typescript",
+  "python",
+  "go",
+  "rust",
+  "java",
+  "csharp",
+  "php",
+]);
+const ALLOWED_SORT = new Set(["relevance", "date"]);
+const ALLOWED_DATE = new Set(["all", "week", "month", "year"]);
+
 /**
  * Read filters from URL search params so reload + share keep state.
- * `q` is also read here and used to seed the SearchBar's controlled
- * input.
+ * Also accept legacy/API-style aliases (e.g. ?source=repository)
+ * coming from external links so users don't see "no match" without
+ * any explanation.
  */
 function readFiltersFromParams(params: URLSearchParams): Filters {
+  let source = params.get("source") ?? DEFAULT_FILTERS.source;
+  // Map API enum values back to FE labels for backwards-compat URLs.
+  if (source === "repository") source = "github";
+  else if (source === "question") source = "stackoverflow";
+  else if (source === "documentation") source = "docs";
+
   return {
-    source: params.get("source") ?? DEFAULT_FILTERS.source,
-    language: params.get("language") ?? DEFAULT_FILTERS.language,
-    sortBy: params.get("sortBy") ?? DEFAULT_FILTERS.sortBy,
-    dateRange: params.get("dateRange") ?? DEFAULT_FILTERS.dateRange,
+    source: ALLOWED_SOURCE.has(source) ? source : DEFAULT_FILTERS.source,
+    language: ALLOWED_LANGUAGE.has(params.get("language") ?? "")
+      ? (params.get("language") as string)
+      : DEFAULT_FILTERS.language,
+    sortBy: ALLOWED_SORT.has(params.get("sortBy") ?? "")
+      ? (params.get("sortBy") as string)
+      : DEFAULT_FILTERS.sortBy,
+    dateRange: ALLOWED_DATE.has(params.get("dateRange") ?? "")
+      ? (params.get("dateRange") as string)
+      : DEFAULT_FILTERS.dateRange,
   };
+}
+
+/** Human-readable label for a filter value, used in the chip strip. */
+function labelFor(kind: keyof Filters, value: string): string {
+  if (kind === "source") {
+    return (
+      { github: "GitHub", stackoverflow: "Stack Overflow", docs: "Documentation" }[
+        value
+      ] ?? value
+    );
+  }
+  if (kind === "language") {
+    return (
+      {
+        javascript: "JavaScript",
+        typescript: "TypeScript",
+        python: "Python",
+        go: "Go",
+        rust: "Rust",
+        java: "Java",
+        csharp: "C#",
+        php: "PHP",
+      }[value] ?? value
+    );
+  }
+  if (kind === "sortBy") {
+    return value === "date" ? "Most recent" : "Relevance";
+  }
+  if (kind === "dateRange") {
+    return (
+      { week: "Past week", month: "Past month", year: "Past year" }[value] ??
+      value
+    );
+  }
+  return value;
 }
 
 function buildSearchUrl(query: string, filters: Filters): string {
@@ -149,25 +215,25 @@ export default function SearchContent() {
                 <span className="text-muted-foreground">Filters:</span>
                 {filters.source !== "all" && (
                   <FilterChip
-                    label={`Source: ${filters.source}`}
+                    label={`Source: ${labelFor("source", filters.source)}`}
                     onClear={() => handleFiltersChange({ ...filters, source: "all" })}
                   />
                 )}
                 {filters.language !== "all" && (
                   <FilterChip
-                    label={`Language: ${filters.language}`}
+                    label={`Language: ${labelFor("language", filters.language)}`}
                     onClear={() => handleFiltersChange({ ...filters, language: "all" })}
                   />
                 )}
                 {filters.sortBy !== "relevance" && (
                   <FilterChip
-                    label={`Sort: ${filters.sortBy}`}
+                    label={`Sort: ${labelFor("sortBy", filters.sortBy)}`}
                     onClear={() => handleFiltersChange({ ...filters, sortBy: "relevance" })}
                   />
                 )}
                 {filters.dateRange !== "all" && (
                   <FilterChip
-                    label={`Date: ${filters.dateRange}`}
+                    label={`Date: ${labelFor("dateRange", filters.dateRange)}`}
                     onClear={() => handleFiltersChange({ ...filters, dateRange: "all" })}
                   />
                 )}
