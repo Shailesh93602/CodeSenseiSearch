@@ -9,7 +9,7 @@ export interface SearchResult {
   score: number;
   similarity?: number;
   metadata: {
-    source: 'repository' | 'question';
+    source: 'repository' | 'question' | 'documentation';
     repositoryId?: string;
     questionId?: string;
     chunkIndex?: number;
@@ -442,7 +442,7 @@ export class SearchService {
           score: searchType === 'semantic' ? result.similarity : 1.0,
           similarity: result.similarity,
           metadata: {
-            source: result.metadata.contentType,
+            source: contentTypeToSource(result.metadata.contentType),
             repositoryId: enrichment?.repositoryId?.toString(),
             questionId: enrichment?.questionId?.toString(),
             chunkIndex: result.metadata.chunkIndex,
@@ -505,4 +505,27 @@ export class SearchService {
       .sort((a, b) => (b.score || 0) - (a.score || 0))
       .slice(0, limit);
   }
+}
+
+/**
+ * Map a Content.contentType (Prisma enum string) into the coarse
+ * `source` label the search response exposes. Mirrors the same helper
+ * in hybrid-search.service.ts — kept duplicated rather than moved to
+ * a shared module because both files independently shape the search
+ * response and a future refactor will likely consolidate them.
+ */
+function contentTypeToSource(
+  contentType?: string | null,
+): 'repository' | 'question' | 'documentation' {
+  if (contentType === 'REPOSITORY_FILE' || contentType === 'repository') {
+    return 'repository';
+  }
+  if (
+    contentType === 'STACKOVERFLOW_QUESTION' ||
+    contentType === 'STACKOVERFLOW_ANSWER' ||
+    contentType === 'question'
+  ) {
+    return 'question';
+  }
+  return 'documentation';
 }
