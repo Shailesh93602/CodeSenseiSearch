@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSearch } from "@/lib/hooks/use-search";
-import { Github, MessageSquare, BookOpen, Copy, Check } from "lucide-react";
+import { Code2, MessageSquare, BookOpen, Copy, Check } from "lucide-react";
 
 interface Filters {
   source: string;
@@ -61,22 +61,28 @@ function parseChunk(raw: ChunkResult): { title: string; body: string } {
 
 function getSourceLabel(source?: string): {
   label: string;
-  Icon: typeof Github;
+  Icon: typeof Code2;
   className: string;
 } {
   switch (source) {
     case "repository":
+    case "REPOSITORY_FILE":
       return {
         label: "GitHub",
-        Icon: Github,
+        Icon: Code2,
         className: "bg-slate-100 text-slate-700",
       };
     case "question":
+    case "STACKOVERFLOW_QUESTION":
+    case "STACKOVERFLOW_ANSWER":
       return {
         label: "Stack Overflow",
         Icon: MessageSquare,
         className: "bg-orange-100 text-orange-700",
       };
+    case "documentation":
+    case "DOCUMENTATION_PAGE":
+    case "BLOG_POST":
     default:
       return {
         label: "Documentation",

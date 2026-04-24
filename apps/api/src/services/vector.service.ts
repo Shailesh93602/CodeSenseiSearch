@@ -147,12 +147,13 @@ export class VectorService {
       }
 
       const query = `
-        SELECT 
+        SELECT
           cc.id,
           cc."chunkText" as content,
           cc.sequence as "chunkIndex",
           c."repositoryId",
           c."questionId",
+          c."contentType" as "contentType",
           c.language,
           c."filePath" as path,
           c.title,
@@ -174,7 +175,11 @@ export class VectorService {
           repositoryId: row.repositoryId,
           questionId: row.questionId,
           chunkIndex: row.chunkIndex,
-          contentType: row.repositoryId ? 'repository' : 'question',
+          // Trust the actual contentType from the row over an
+          // inference. The previous heuristic (`row.repositoryId ?
+          // 'repository' : 'question'`) labeled documentation chunks
+          // as 'question', which the FE rendered as 'Stack Overflow'.
+          contentType: row.contentType ?? 'unknown',
           language: row.language,
           path: row.path,
           title: row.title,

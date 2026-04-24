@@ -25,7 +25,7 @@ export interface HybridSearchResult {
   combinedRank: number;
   searchMethod: 'vector' | 'text' | 'both';
   metadata: {
-    source: 'repository' | 'question';
+    source: 'repository' | 'question' | 'documentation';
     repositoryId?: string;
     questionId?: string;
     contentType?: string;
@@ -323,10 +323,7 @@ export class HybridSearchService {
         combinedRank: normalizedScore * vectorWeight,
         searchMethod: 'vector',
         metadata: {
-          source:
-            result.metadata.contentType === 'repository'
-              ? 'repository'
-              : 'question',
+          source: contentTypeToSource(result.metadata.contentType),
           repositoryId: result.metadata.repositoryId,
           questionId: result.metadata.questionId,
           contentType: result.metadata.contentType,
@@ -366,10 +363,7 @@ export class HybridSearchService {
           combinedRank: normalizedScore * textWeight,
           searchMethod: 'text',
           metadata: {
-            source:
-              result.contentType === 'REPOSITORY_FILE'
-                ? 'repository'
-                : 'question',
+            source: contentTypeToSource(result.contentType),
             language: result.language ?? undefined,
             contentType: result.contentType,
             repositoryName: result.repositoryName ?? undefined,
@@ -510,3 +504,26 @@ export class HybridSearchService {
     }
   }
 }
+
+/**
+ * Map a Content.contentType (Prisma enum string) into the coarse
+ * `source` label the search response exposes. The FE renders this as
+ * a badge: "GitHub" for repos, "Stack Overflow" for SO content,
+ * "Documentation" for everything else (curated docs, blog posts).
+ */
+function contentTypeToSource(
+  contentType?: string | null,
+): 'repository' | 'question' | 'documentation' {
+  if (contentType === 'REPOSITORY_FILE' || contentType === 'repository') {
+    return 'repository';
+  }
+  if (
+    contentType === 'STACKOVERFLOW_QUESTION' ||
+    contentType === 'STACKOVERFLOW_ANSWER' ||
+    contentType === 'question'
+  ) {
+    return 'question';
+  }
+  return 'documentation';
+}
+
