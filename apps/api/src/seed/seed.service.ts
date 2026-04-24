@@ -56,8 +56,14 @@ export class SeedService {
     return [...DEMO_CORPUS, ...ALL_BATCH_ITEMS];
   }
 
-  async seedDemoCorpus(): Promise<SeedResult> {
+  async seedDemoCorpus(opts: {
+    /** Max number of NEW embeddings to generate this call. Lets the
+     * operator chunk the work so a 200-item batch doesn't hit Vercel's
+     * 60s function timeout. Default: no limit. */
+    limit?: number;
+  } = {}): Promise<SeedResult> {
     const startedAt = Date.now();
+    const embedLimit = opts.limit ?? Number.POSITIVE_INFINITY;
 
     if (!this.gemini.isAvailable()) {
       throw new Error(
@@ -84,6 +90,12 @@ export class SeedService {
     for (const item of items) {
       result.byContentType[item.contentType] =
         (result.byContentType[item.contentType] ?? 0) + 1;
+
+      // Stop generating new embeddings once we hit the per-call cap.
+      // We still walk the rest of the list so the byContentType
+      // count is accurate for the whole corpus.
+      const reachedLimit = result.embedded >= embedLimit;
+      if (reachedLimit) continue;
 
       try {
         await this.seedOne(item, result);
@@ -308,8 +320,7 @@ function sha256(s: string): string {
 function hashToInt(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i += 1) {
-    h = (h << 5) - h + s.charCodeAt(i);
-    h |= 0;
+    h = Math.trunc((h << 5) - h + (s.codePointAt(i) ?? 0));
   }
   return h;
 }

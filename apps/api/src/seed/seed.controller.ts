@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Headers,
   Post,
+  Query,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
@@ -27,7 +28,17 @@ export class SeedController {
   constructor(private readonly seedService: SeedService) {}
 
   @Post('demo')
-  async seedDemo(@Headers('x-seed-secret') providedSecret?: string) {
+  async seedDemo(
+    @Headers('x-seed-secret') providedSecret?: string,
+    /**
+     * Cap how many NEW embeddings this call generates. Useful when
+     * the corpus has > ~50 unembedded items (Vercel function timeout
+     * is 60s; one embedding ~1.2s). Operator calls the endpoint in
+     * a loop until {embedded: 0} is returned, indicating the corpus
+     * is fully embedded.
+     */
+    @Query('limit') limitParam?: string,
+  ) {
     const expected = process.env.SEED_SECRET;
     if (!expected) {
       throw new ServiceUnavailableException(
@@ -38,8 +49,10 @@ export class SeedController {
       throw new ForbiddenException('Invalid seed secret.');
     }
 
+    const limit = limitParam ? Math.max(1, Number(limitParam)) : undefined;
+
     try {
-      const result = await this.seedService.seedDemoCorpus();
+      const result = await this.seedService.seedDemoCorpus({ limit });
       return { success: true, ...result };
     } catch (err) {
       return {
