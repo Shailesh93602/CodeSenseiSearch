@@ -24,7 +24,7 @@ export interface SearchResult {
 export interface SearchOptions {
   limit?: number;
   threshold?: number;
-  source?: 'repository' | 'question' | 'all';
+  source?: 'repository' | 'question' | 'documentation' | 'all';
   language?: string;
   repositoryId?: string;
 }
@@ -164,27 +164,35 @@ export class SearchService {
         .filter((term) => term.length > 0)
         .join(' & ');
 
-      // Build WHERE conditions
+      // Build WHERE conditions. Note: the FK columns live on `contents`
+      // (alias c), NOT on `content_chunks` (alias cc) — the previous
+      // build referenced cc."repositoryId", which doesn't exist as a
+      // column, and the WHERE silently no-op'd. The corrected references
+      // here also handle the new 'documentation' source value.
       const conditions: string[] = [];
       const params: any[] = [searchTerms, limit];
       let paramIndex = 3;
 
-      if (source !== 'all') {
-        if (source === 'repository') {
-          conditions.push('cc."repositoryId" IS NOT NULL');
-        } else if (source === 'question') {
-          conditions.push('cc."questionId" IS NOT NULL');
-        }
+      if (source === 'repository') {
+        conditions.push(`c."contentType" = 'REPOSITORY_FILE'`);
+      } else if (source === 'question') {
+        conditions.push(
+          `c."contentType" IN ('STACKOVERFLOW_QUESTION', 'STACKOVERFLOW_ANSWER')`,
+        );
+      } else if (source === 'documentation') {
+        conditions.push(
+          `c."contentType" IN ('DOCUMENTATION_PAGE', 'BLOG_POST')`,
+        );
       }
 
       if (language) {
-        conditions.push(`cc.language = $${paramIndex}`);
+        conditions.push(`c.language = $${paramIndex}`);
         params.push(language);
         paramIndex++;
       }
 
       if (repositoryId) {
-        conditions.push(`cc."repositoryId" = $${paramIndex}`);
+        conditions.push(`c."repositoryId" = $${paramIndex}`);
         params.push(repositoryId);
         paramIndex++;
       }
@@ -193,12 +201,13 @@ export class SearchService {
         conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '';
 
       const query_sql = `
-        SELECT 
+        SELECT
           cc.id,
           cc."chunkText" as content,
           cc.sequence as "chunkIndex",
           c."repositoryId",
           c."questionId",
+          c."contentType" as "contentType",
           c.language,
           r."fullName" as repository_name,
           r."owner" as repository_owner,
@@ -223,7 +232,11 @@ export class SearchService {
         content: row.content,
         score: parseFloat(row.rank),
         metadata: {
-          source: row.repositoryId ? 'repository' : 'question',
+          // Trust the actual contentType enum on the row instead of
+          // inferring from FK presence. Without this, every documentation
+          // chunk (no repositoryId, no questionId) was labeled 'question'
+          // and rendered as a Stack Overflow badge in the UI.
+          source: contentTypeToSource(row.contentType),
           repositoryId: row.repositoryId?.toString(),
           questionId: row.questionId?.toString(),
           chunkIndex: row.chunkIndex,
@@ -232,7 +245,9 @@ export class SearchService {
           owner: row.repository_owner,
           url: row.repositoryId
             ? row.repository_url
-            : `https://stackoverflow.com/questions/${row.question_so_id}`,
+            : row.question_so_id
+              ? `https://stackoverflow.com/questions/${row.question_so_id}`
+              : undefined,
         },
       }));
     } catch (error) {

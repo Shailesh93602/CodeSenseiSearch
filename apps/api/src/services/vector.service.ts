@@ -9,7 +9,7 @@ export interface VectorSearchResult {
     repositoryId?: string;
     questionId?: string;
     chunkIndex?: number;
-    contentType: 'repository' | 'question';
+    contentType: 'repository' | 'question' | 'documentation' | 'unknown';
     language?: string;
     path?: string;
     title?: string;
@@ -19,7 +19,7 @@ export interface VectorSearchResult {
 export interface VectorSearchOptions {
   limit?: number;
   threshold?: number;
-  contentType?: 'repository' | 'question' | 'all';
+  contentType?: 'repository' | 'question' | 'documentation' | 'all';
   language?: string;
   repositoryId?: string;
 }
@@ -69,7 +69,7 @@ export class VectorService {
         repositoryId?: string;
         questionId?: string;
         chunkIndex?: number;
-        contentType: 'repository' | 'question';
+        contentType: 'repository' | 'question' | 'documentation' | 'unknown';
       };
     }>,
   ): Promise<void> {
@@ -125,13 +125,16 @@ export class VectorService {
         paramIndex++;
       }
 
-      if (contentType !== 'all') {
-        whereClause += ` AND (
-          (cc."repositoryId" IS NOT NULL AND $${paramIndex} = 'repository') OR 
-          (cc."questionId" IS NOT NULL AND $${paramIndex} = 'question')
-        )`;
-        params.push(contentType);
-        paramIndex++;
+      // Source filter via the actual contentType enum on `contents`.
+      // The earlier code referenced cc."repositoryId" / cc."questionId"
+      // — those columns live on `contents` (alias c), not on
+      // `content_chunks` (alias cc), so the filter never matched.
+      if (contentType === 'repository') {
+        whereClause += ` AND c."contentType" = 'REPOSITORY_FILE'`;
+      } else if (contentType === 'question') {
+        whereClause += ` AND c."contentType" IN ('STACKOVERFLOW_QUESTION', 'STACKOVERFLOW_ANSWER')`;
+      } else if (contentType === 'documentation') {
+        whereClause += ` AND c."contentType" IN ('DOCUMENTATION_PAGE', 'BLOG_POST')`;
       }
 
       if (language) {
@@ -141,7 +144,7 @@ export class VectorService {
       }
 
       if (repositoryId) {
-        whereClause += ` AND cc."repositoryId" = $${paramIndex}`;
+        whereClause += ` AND c."repositoryId" = $${paramIndex}`;
         params.push(repositoryId);
         paramIndex++;
       }

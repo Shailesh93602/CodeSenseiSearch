@@ -38,6 +38,19 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
   const [query, setQuery] = useState(initialQuery);
   const [filters, setFilters] = useState<SearchFilters>(initialFilters);
+  // Sync internal filter state when the parent's `initialFilters`
+  // changes (e.g. user clicks a different source in the sidebar).
+  // Without this, search() would call the API with the FIRST set of
+  // filters seen at hook init and ignore subsequent changes — that's
+  // the "I clicked GitHub but Stack Overflow results came back" bug.
+  // Compared via JSON because filters is a plain object.
+  const initialFiltersKey = JSON.stringify(initialFilters);
+  useEffect(() => {
+    queueMicrotask(() => setFilters(initialFilters));
+    // Intentionally tracking the stringified value, not the object
+    // identity, so a fresh-but-equivalent object doesn't re-fire.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFiltersKey]);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

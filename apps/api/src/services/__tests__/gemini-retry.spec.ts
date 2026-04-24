@@ -40,7 +40,7 @@ describe('GeminiService retry/backoff', () => {
 
     expect(embedContent).toHaveBeenCalledTimes(1);
     expect(result.embedding).toHaveLength(768);
-    expect(result.model).toBe('text-embedding-004');
+    expect(result.model).toBe('gemini-embedding-001');
   });
 
   it('retries transient errors then succeeds (rate limit → ok)', async () => {

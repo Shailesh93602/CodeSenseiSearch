@@ -13,6 +13,7 @@ import {
   Check,
   AlertTriangle,
   SearchX,
+  Filter,
 } from "lucide-react";
 import type { Filters } from "@/components/search-filters";
 import { cn } from "@/lib/utils";
@@ -226,6 +227,47 @@ export function SearchResults({ query, filters }: SearchResultsProps) {
 
   // ----- No results for this query -----
   if (!loading && results.length === 0 && query) {
+    // Branch the empty state based on WHY there are no results. If a
+    // filter is active, the user almost certainly excluded everything
+    // — tell them so and give a one-click escape. Without a filter,
+    // the corpus simply doesn't cover this query.
+    const filterIsActive =
+      filters.source !== "all" ||
+      filters.language !== "all" ||
+      filters.dateRange !== "all";
+
+    if (filterIsActive) {
+      const filterSummary = describeActiveFilter(filters);
+      return (
+        <EmptyState
+          Icon={Filter}
+          heading={`No ${filterSummary} matches for "${query}"`}
+          body={
+            filters.source === "github"
+              ? "The seeded demo corpus is owner-authored documentation, not GitHub repositories. Try removing the source filter or pick a Documentation match."
+              : filters.source === "stackoverflow"
+                ? "The seeded demo corpus has no Stack Overflow content yet. Remove the source filter to see what's indexed."
+                : "Loosen one of the filters to see what the corpus does cover."
+          }
+          cta={
+            <button
+              type="button"
+              onClick={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.delete("source");
+                url.searchParams.delete("language");
+                url.searchParams.delete("dateRange");
+                window.location.href = url.pathname + url.search;
+              }}
+              className="inline-flex items-center rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              Clear filters
+            </button>
+          }
+        />
+      );
+    }
+
     return (
       <EmptyState
         Icon={SearchX}
@@ -345,6 +387,16 @@ export function SearchResults({ query, filters }: SearchResultsProps) {
       </div>
     </div>
   );
+}
+
+/** Short human label for whichever filter is the most "informative." */
+function describeActiveFilter(f: Filters): string {
+  if (f.source === "github") return "GitHub";
+  if (f.source === "stackoverflow") return "Stack Overflow";
+  if (f.source === "docs") return "Documentation";
+  if (f.language !== "all") return f.language;
+  if (f.dateRange !== "all") return `${f.dateRange}-recent`;
+  return "filtered";
 }
 
 function ResultSkeleton() {
