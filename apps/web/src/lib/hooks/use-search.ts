@@ -106,11 +106,28 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       }
 
       if (response.success) {
-        const newResults = response.data.results;
-        setResults(prev => append ? [...prev, ...newResults] : newResults);
-        setHasMore(response.data.hasMore);
-        setTotalResults(response.data.total);
-        setSearchTime(response.data.took);
+        // The API returns `totalResults` and `searchTime` (camelCase
+        // matching NestJS controller shape), not the `total` / `took`
+        // names the typed SearchResponse interface inherited from an
+        // earlier mock. Read both to stay forward-compatible if the
+        // shape ever flips back.
+        const data = response.data as unknown as {
+          results: unknown[];
+          totalResults?: number;
+          total?: number;
+          searchTime?: number;
+          took?: number;
+          hasMore?: boolean;
+        };
+        const newResults = data.results;
+        setResults(prev =>
+          append
+            ? [...prev, ...(newResults as typeof prev)]
+            : (newResults as typeof prev),
+        );
+        setHasMore(data.hasMore ?? false);
+        setTotalResults(data.totalResults ?? data.total ?? newResults.length);
+        setSearchTime(data.searchTime ?? data.took ?? 0);
         setCurrentPage(page);
       } else {
         throw new Error(response.error || 'Search failed');
