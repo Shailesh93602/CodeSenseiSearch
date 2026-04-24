@@ -25,6 +25,10 @@ import { BATCH as github014 } from './github-014-zod-typescript';
 import { BATCH as github015 } from './github-015-async-patterns';
 import { BATCH as github016 } from './github-016-vitest-testing';
 import { BATCH as github017 } from './github-017-radix-primitives';
+import { BATCH as github018 } from './github-018-tokio-rust';
+import { BATCH as github019 } from './github-019-gin-go';
+import { BATCH as github020 } from './github-020-fastapi-python';
+import { BATCH as github021 } from './github-021-pgvector-postgres';
 
 export const ALL_BATCHES: ReadonlyArray<{ name: string; items: SeedItem[] }> = [
   { name: 'github-001-react-hooks', items: github001 },
@@ -44,6 +48,10 @@ export const ALL_BATCHES: ReadonlyArray<{ name: string; items: SeedItem[] }> = [
   { name: 'github-015-async-patterns', items: github015 },
   { name: 'github-016-vitest-testing', items: github016 },
   { name: 'github-017-radix-primitives', items: github017 },
+  { name: 'github-018-tokio-rust', items: github018 },
+  { name: 'github-019-gin-go', items: github019 },
+  { name: 'github-020-fastapi-python', items: github020 },
+  { name: 'github-021-pgvector-postgres', items: github021 },
 ];
 
 /** Flattened item list for the seed service to iterate. */
