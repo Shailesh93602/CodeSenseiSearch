@@ -10,11 +10,11 @@ empty state. This document is the playbook for getting there.
 
 | Source             | contentType                | Target | Status     |
 | ------------------ | -------------------------- | ------ | ---------- |
-| GitHub             | `REPOSITORY_FILE`          | 1000   | 525/1000   |
+| GitHub             | `REPOSITORY_FILE`          | 1000   | 640/1000   |
 | Stack Overflow     | `STACKOVERFLOW_*`          | 1000   | 0/1000     |
 | Documentation      | `DOCUMENTATION_PAGE`       |  500   | 15/500     |
 | Blog               | `BLOG_POST`                |  100   | 0/100      |
-| **Total**          |                            | 2600   | 540/2600   |
+| **Total**          |                            | 2600   | 655/2600   |
 
 Done in **batches of ~30**, one or two batches per session. ~85 total
 batches → ~10–15 working sessions to first milestone (1000 GitHub).
@@ -160,11 +160,17 @@ is idempotent and cheap.
 | 019 | github-019-gin-go.ts                  | Gin (middleware ordering + abortIndex, Recovery EPIPE, BasicAuth crypto/subtle, Hijack websocket, radix tree internals) | ✅ shipped (20) |
 | 020 | github-020-fastapi-python.ts          | FastAPI (Depends sub-deps, yield-deps + AsyncExitStack, async vs def threadpool, OAuth2PasswordBearer, lifespan, pydantic v2 bridge) | ✅ shipped (25) |
 | 021 | github-021-pgvector-postgres.ts       | pgvector (vector storage layout, distance ops + COMMUTATOR, opclasses, halfvec F16C, sparsevec, HNSW build phases, Reciprocal Rank Fusion) | ✅ shipped (20) |
-| 022 | github-022-github-actions.ts          | Composite actions, matrix builds, caching, OIDC, reusable workflows | pending |
-| 023 | github-023-drizzle-orm.ts             | Drizzle (schema-first, prepared statements, relational queries, migrations) | pending |
-| 024 | github-024-sentry-otel.ts             | Sentry SDK + OpenTelemetry (instrumentation, sampling, baggage, error fingerprinting) | pending |
-| 025 | github-025-jose-jwt.ts                | jose JWT (sign/verify, JWKS, key rotation, RFC compliance edge cases) | pending |
-| ... | (more batches for k8s, security, build tooling) | toward 1000 GitHub                  | pending |
+| 022 | github-022-actions-toolkit.ts         | @actions/toolkit (core/exec/io/cache/glob/artifact/http-client + OIDC + summary + workflow commands) | ✅ shipped (20) |
+| 023 | github-023-drizzle-orm.ts             | Drizzle (pgTable typed-string-union enum trick, jsonb mappers, SAVEPOINT nesting, $with CTE, sql.placeholder) | ✅ shipped (25) |
+| 024 | github-024-sentry-observability.ts    | Sentry JS (init + dsn parsing, scopes, beforeSend, tracesSampleRate, BrowserTracing, Replay sample modes, OTel SpanProcessor) | ✅ shipped (25) |
+| 025 | github-025-jose-jwt.ts                | jose (SignJWT, jwtVerify ordering, key import/export, JWE alg vs enc, JWKS cooldown, alg-confusion attack defense) | ✅ shipped (20) |
+| 026 | github-026-hono-edge.ts               | Hono (SmartRouter, c.req shared bodyCache, hc() Proxy RPC, validator, JWT/CORS/ETag/Compress middleware, edge adapters) | ✅ shipped (25) |
+| 027 | github-027-k8s-patterns.ts            | k8s manifests (probes, RBAC, NetworkPolicy, HPA), kubectl client patterns | pending |
+| 028 | github-028-helmet-csrf.ts             | Helmet headers, CSRF tokens, rate limiters, content security policy | pending |
+| 029 | github-029-vite-turbo.ts              | Vite plugins, Turbopack, esbuild, tree-shaking, code-splitting | pending |
+| 030 | github-030-websockets.ts              | ws / Socket.io patterns, heartbeat, backpressure, room semantics | pending |
+| 031 | github-031-cloudflare-workers.ts      | wrangler, KV/D1/R2/Queues bindings, Durable Objects, edge runtime constraints | pending |
+| ... | (more batches for ops/observability/protocols) | toward 1000 GitHub                  | pending |
 
 That's 300 entries to start — covers the most-likely "react",
 "nextjs", "typescript", "async", "database", "redis" queries.

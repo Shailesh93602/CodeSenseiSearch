@@ -4,6 +4,66 @@ Items move here from `TODO.md` as they ship. Most-recent at the top.
 
 ---
 
+## 2026-04-24 — Corpus expansion: 5 more OSS batches (115 entries) — 640/1000 GitHub
+
+- 5 sub-agents drafted batches 022–026 in parallel against fresh
+  shallow clones (`/tmp/oss/actions-toolkit`, `/tmp/oss/drizzle-orm`,
+  `/tmp/oss/sentry-javascript`, `/tmp/oss/jose`, `/tmp/oss/hono`).
+  All 115 file paths verified.
+- Batch 022 (Actions toolkit, 20): GITHUB_OUTPUT heredoc protocol
+  (vs deprecated set-output CVE-2020-15228), setSecret masking,
+  error/warning/notice annotations, summary HTML, getIDToken OIDC
+  for keyless cloud auth, saveState/getState post-step lifecycle,
+  octokit context env-var hydration, exec subprocess streaming,
+  io.rmRF Windows AV retry, tool-cache .complete sentinel, cache
+  10GB cap + scope rules, glob hashFiles, attestProvenance SLSA +
+  Sigstore.
+- Batch 023 (Drizzle ORM, 25): pgTable typed-string-union enum
+  trick, jsonb driver mappers (JSON.stringify on write, lenient
+  parse on read), timestamp +0000 UTC hack, .default() vs
+  .$defaultFn() (SQL vs JS side), inArray([]) returns sql\`false\`,
+  .prepare() + sql.placeholder, nested transactions via
+  SAVEPOINT, pgEnum CREATE TYPE, partial/concurrent indexes,
+  onConflictDoUpdate vs onDuplicateKeyUpdate (DB-specific upsert),
+  $with CTEs, db.batch D1/Turso atomic batch.
+- Batch 024 (Sentry JS, 25): browser-extension auto-disable in
+  init, DSN regex parsing + org_id extraction, integrations vs
+  defaultIntegrations function form, captureException grouping
+  consequences, withScope clone + try/finally, beforeSend last-mile
+  filter, tracesSampleRate + propagated sample_rand,
+  tracePropagationTargets LRU + CORS gotcha, Replay session vs
+  error sample rate (buffer mode), per-process profiling sampling
+  (no worker threads), SentrySpanProcessor + SentryPropagator +
+  baggage edge cases, BrowserTracing bot detection, Node SDK
+  skipOpenTelemetrySetup, debug:true requires debug bundle.
+- Batch 025 (jose JWT, 20): SignJWT + b64:false rejection,
+  jwtVerify ordering (signature before claims), validateClaimsSet
+  presence-then-value-then-time, generateKeyPair 2048-bit RSA
+  floor + Ed25519 EdDSA equivalence, importPKCS8/SPKI/X509/JWK
+  PEM header check + RSA-PSS OID warning, exportJWK private-vs-
+  public hazard, JWE alg vs enc parameter split + dir
+  indirection, PBES2 PBKDF2 default 2048 vs OWASP 600k iterations,
+  createRemoteJWKSet cooldown/cacheMaxAge/no-match-retry + CF
+  Workers gotcha, JWKS local key matching ES512→P-521 trap,
+  algorithms allowlist + alg-confusion attack, UnsecuredJWT
+  alg=none isolation, decodeJwt unverified-read role=admin
+  pitfall.
+- Batch 026 (Hono edge framework, 25): SmartRouter wires
+  RegExpRouter + TrieRouter, c.req shared bodyCache, route params
+  + wildcard via TrieRouter, c.executionCtx.waitUntil for CF
+  Workers, hc() Proxy-based RPC client with type inference from
+  server routes, validator() content-type aware, BasicAuth
+  timingSafeEqual, CORS reflects origin when credentials+wildcard,
+  ETag SHA-1 + retained 304 headers, Compress CompressionStream +
+  weak-ETag conversion, Cache via globalThis.caches + waitUntil,
+  bodyLimit Content-Length vs chunked stream, app.mount() for
+  foreign frameworks, streamSSE() Bun-version workaround,
+  HTTPException default error handler unwrap, AWS Lambda multi-
+  event-type handle(), CF Workers WebSocket via WebSocketPair.
+- Seed: 5 chunked invocations, 115 new embeddings.
+- 10/10 smoke-test queries return precise hits across all 5 new
+  batches.
+
 ## 2026-04-24 — Corpus expansion: cross-language wave (90 entries) — past halfway
 
 - 4 sub-agents drafted batches 018–021 in parallel against fresh

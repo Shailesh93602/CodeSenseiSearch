@@ -13,25 +13,27 @@ in [CORPUS-PLAN.md](./CORPUS-PLAN.md).
 
 ## A. Corpus expansion (the active work)
 
-Current totals: **540/2600 chunks** (15 docs + 525 GitHub — 52.5% to milestone).
+Current totals: **655/2600 chunks** (15 docs + 640 GitHub — 64% to milestone).
 
 | Source         | Target | Have | Next                                    |
 | -------------- | ------ | ---- | --------------------------------------- |
-| GitHub         | 1000   | 525  | OSS batches 022–026 (GitHub Actions, Drizzle, Sentry/OTEL, jose JWT, k8s) |
-| Stack Overflow | 1000   |   0  | start after GitHub crosses ~700         |
+| GitHub         | 1000   | 640  | OSS batches 027–031 (k8s, Helmet/CSRF, Vite/Turbo, websockets, Cloudflare Workers) |
+| Stack Overflow | 1000   |   0  | start after GitHub crosses ~800         |
 | Documentation  |  500   |  15  | extend gradually from owner-authored Q&A |
 | Blog           |  100   |   0  | quarterly cadence, link to portfolio blog |
 
-- [ ] 🟡 **OSS batches 022–026.** Next 5 batches → +120 entries.
-  Themes: GitHub Actions, Drizzle ORM, Sentry/OpenTelemetry, jose
-  JWT, k8s patterns. Brings GitHub to ~645/1000.
-- [ ] 🟡 **OSS batches 027–034.** Final wave: build tooling
-  (vite/esbuild/turbo), security primitives (helmet/csrf), Hono,
-  Drizzle migrations, Cloudflare Workers, Bun, esoteric DB
-  patterns. → +200 entries → 845+/1000 GitHub.
+- [ ] 🟡 **OSS batches 027–031.** Next 5 batches → +120 entries.
+  Themes: k8s manifests + kubectl patterns, Helmet/CSRF/rate
+  limiters, Vite/Turbopack/esbuild internals, ws/Socket.io
+  patterns, Cloudflare Workers + Durable Objects.
+  Brings GitHub to ~760/1000.
+- [ ] 🟡 **OSS batches 032–040.** Final wave: protocols (gRPC,
+  protobuf, WebRTC), more frameworks (NestJS, fastify, tRPC),
+  observability (Datadog, Honeycomb), CDC (Debezium, Kafka).
+  → +200 entries → close to 1000.
 - [ ] 🟡 **Personal-project second pass.** Each repo can yield
   another 15-25 entries on patterns the first agent missed.
-  +150 entries → 1000+ GitHub.
+  +150 entries → close out 1000 GitHub.
 - [ ] 🟡 **Stack Overflow batches (so-001 onwards).** Real
   questions under CC-BY-SA, with proper attribution (author +
   question id). Target 1000 across ~33 batches.
