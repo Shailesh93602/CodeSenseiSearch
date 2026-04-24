@@ -29,6 +29,11 @@ import { BATCH as github018 } from './github-018-tokio-rust';
 import { BATCH as github019 } from './github-019-gin-go';
 import { BATCH as github020 } from './github-020-fastapi-python';
 import { BATCH as github021 } from './github-021-pgvector-postgres';
+import { BATCH as github022 } from './github-022-actions-toolkit';
+import { BATCH as github023 } from './github-023-drizzle-orm';
+import { BATCH as github024 } from './github-024-sentry-observability';
+import { BATCH as github025 } from './github-025-jose-jwt';
+import { BATCH as github026 } from './github-026-hono-edge';
 
 export const ALL_BATCHES: ReadonlyArray<{ name: string; items: SeedItem[] }> = [
   { name: 'github-001-react-hooks', items: github001 },
@@ -52,6 +57,11 @@ export const ALL_BATCHES: ReadonlyArray<{ name: string; items: SeedItem[] }> = [
   { name: 'github-019-gin-go', items: github019 },
   { name: 'github-020-fastapi-python', items: github020 },
   { name: 'github-021-pgvector-postgres', items: github021 },
+  { name: 'github-022-actions-toolkit', items: github022 },
+  { name: 'github-023-drizzle-orm', items: github023 },
+  { name: 'github-024-sentry-observability', items: github024 },
+  { name: 'github-025-jose-jwt', items: github025 },
+  { name: 'github-026-hono-edge', items: github026 },
 ];
 
 /** Flattened item list for the seed service to iterate. */
