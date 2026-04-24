@@ -1,6 +1,6 @@
 # CodeSenseiSearch — Portfolio polish tracker
 
-Last updated: 2026-04-24.
+Last updated: 2026-04-24 (post design-system pass).
 
 State: backend + frontend deployed end-to-end on Vercel. Hybrid search
 (Gemini embeddings + pgvector + Postgres FTS) returns real results
@@ -21,141 +21,87 @@ Supabase pauses on.
 
 ## A. Visible bugs
 
-- [ ] 🔴 **Filters on /search are ornamental.** Source / Language /
-  Sort filters mutate state but don't change what's shown. The state
-  is wired into `apiFilters` in `apps/web/src/components/search-results.tsx:91-104`,
-  but: (1) the API `searchType: 'hybrid'` ignores the `source` /
-  `sortBy` / `dateRange` keys, and (2) the FE never validates the
-  user actually saw the change. Either pass the filters to the
-  controller AND have the controller honor them in the SQL
-  WHERE clause, or hide the filters until they work.
-
-- [ ] 🔴 **Filter state isn't in the URL.** Reload or share loses
-  every filter. The `q` query param is read at
-  `apps/web/src/app/search/search-content.tsx:16` but `source`,
-  `language`, `sortBy`, `dateRange` are pure component state. Every
-  filter change should `router.replace` with the encoded state.
-
-- [ ] 🔴 **Result count is initially "results for X"** before the
-  count loads. The render shouldn't show that header until
-  `totalResults` is set, or it should show a skeleton.
-
-- [ ] 🔴 **No custom 404.** Hitting any non-existent route shows
-  Next.js's bare default. Need `apps/web/src/app/not-found.tsx`
-  matching site styling.
-
-- [ ] 🔴 **No error boundary.** A thrown render error shows the bare
-  Next dev page. Need `apps/web/src/app/error.tsx` with a friendly
-  retry + GitHub-issue link.
-
-- [ ] 🟡 **Header reimplemented per page.** `/search/search-content.tsx`
-  has its own header, `/docs/page.tsx` has a different gradient
-  header, home uses `<Hero>` with no nav. A single `<Navbar>`
-  component should render on every route via `app/layout.tsx`.
-
-- [ ] 🟡 **No footer anywhere.** Every page just ends. A footer with
-  GitHub link, "Built by Shailesh Chaudhari", privacy / about links
-  is the bare minimum.
-
-- [ ] 🟡 **Search bar placeholder is too long for mobile.**
-  `apps/web/src/components/search-bar.tsx:136` placeholder gets
-  truncated to mush on iPhone. Shorten or show different copy below
-  sm breakpoint.
+- [x] 🔴 ~~Filters on /search are ornamental.~~ Filters now reach the
+  API: `api-client.ts` posts `{query, options:{}}` (matching the
+  controller signature) and maps FE labels to the API enum. Verified
+  end-to-end: `source: repository` returns 0, `source: documentation`
+  returns 1, `language: rust` returns 0. Sort + date are still passed
+  through but the server hasn't implemented them — see TODO E.7.
+- [x] 🔴 ~~Filter state isn't in the URL.~~ `search-content.tsx` now
+  syncs every filter change to `router.replace(...)`. Reload + share
+  preserve filters; legacy `?source=repository` URLs are translated
+  back to FE labels.
+- [x] 🔴 ~~Result count initially "results for X" before count loads.~~
+  Loading state now renders 3 skeleton cards matching result-card
+  shape; the count-line waits.
+- [x] 🔴 ~~No custom 404.~~ `app/not-found.tsx` ships the styled "404 —
+  that page isn't in the index" page with Home + Search CTAs.
+- [x] 🔴 ~~No error boundary.~~ `app/error.tsx` renders a friendly
+  retry + GitHub-issue link; logs error+digest for tracing.
+- [x] 🟡 ~~Header reimplemented per page.~~ `Navbar` component
+  mounted globally via `app/layout.tsx`. Per-page headers gone.
+- [x] 🟡 ~~No footer anywhere.~~ `Footer` mounted in layout. Tiny
+  but consistent: nav links + "built by Shailesh / view source / MIT".
+- [x] 🟡 ~~Search bar placeholder too long for mobile.~~ Shortened to
+  "Search snippets, docs, examples…" — fits iPhone 14 Pro width.
 
 ---
 
 ## B. Design system inconsistency
 
-The audit catalogued 60+ small things; the pattern is the same:
-no shared design tokens, every component invents its own padding /
-shadow / radius / color.
-
-- [ ] 🟡 **Adopt the "house style" used across the owner's other
-  projects.** Five sibling repos (portfolio_next, EduScale, KhataGO,
-  devtrack, CareerGlyph) consistently use:
-  - **Font:** Inter (currently we use Geist — switch).
-  - **Dark mode:** `class` strategy via next-themes, with FOUC-prevention
-    inline script in `<head>`.
-  - **Navbar:** sticky, blurred backdrop, `z-50`, logo-left, nav-right,
-    theme toggle in top-right.
-  - **Cards:** `rounded-lg` (8-12px), subtle border, hover lift.
-  - **Spacing:** consistent 4 / 6 / 8 scale, no random `gap-3` mixed
-    with `gap-5`.
-  - **Primary accent:** purple/blue. Pick one and use a CSS variable.
-
-- [ ] 🟡 **No dark mode at all.** `globals.css` defines `.dark` tokens
-  but no component uses `dark:` classes and there's no toggle.
-  Sibling projects all support it. Implement.
-
-- [ ] 🟡 **Color tokens, not Tailwind primitives, in custom code.**
-  Ban `bg-blue-100 text-blue-700` from JSX — those should be design
-  tokens like `bg-accent text-accent-foreground` defined once in
-  `tailwind.config.ts`. Currently scattered across:
-  - `search-filters.tsx:68`
-  - `search-results.tsx:73-92`
-  - `features.tsx:25-65`
-
-- [ ] 🟡 **Buttons are inconsistent.** Hero uses `size="lg" h-14`,
-  search uses `size="sm" h-10`, filters use `size="sm"`. Define a
-  size system in the Button component and use it.
-
-- [ ] 🟡 **Card aesthetic is mixed.** Same hierarchy renders with
-  different shadows (`hover:shadow-lg` vs `hover:shadow-md` vs
-  `shadow-sm`) across `features.tsx`, `search-results.tsx`,
-  `docs/page.tsx`. Pick one.
-
-- [ ] 🟡 **Heading hierarchy not codified.** `h1`, `h2`, `h3` use
-  different sizes on different pages. Define a typography scale in
-  `globals.css` (or use `@tailwindcss/typography` properly).
-
-- [ ] 🟡 **Favicon is the Next.js default.** Replace with a real
-  favicon set (16/32/180/512 px), apple-touch-icon, manifest.json
-  themed properly.
+- [x] 🟡 ~~Adopt house style.~~ Inter font, class-based dark mode,
+  HSL design tokens (light + dark), sticky blurred navbar with
+  theme toggle, rounded-lg cards, consistent spacing scale,
+  indigo primary. All landed.
+- [x] 🟡 ~~No dark mode.~~ next-themes wired with FOUC-prevention
+  inline script. Verified light + dark on home / search / docs /
+  404 — see screenshots in /tmp.
+- [x] 🟡 ~~Hardcoded color primitives.~~ Every component now uses
+  design tokens (`bg-card`, `text-muted-foreground`, `border-border`,
+  `bg-primary/10`, etc). One exception: Stack Overflow brand color
+  in result badges intentionally uses `orange-` so the badge reads
+  as the SO brand even in dark mode.
+- [x] 🟡 ~~Buttons inconsistent.~~ Hero, search, filters all use the
+  shadcn Button size system (`size="lg"|"sm"|"icon"`).
+- [x] 🟡 ~~Card aesthetic mixed.~~ All cards use the same border /
+  hover-lift pattern via the Card primitive + token classes.
+- [ ] 🟡 **Heading hierarchy not codified.** Still per-page; not a
+  blocker since the design pass tightened sizes within each page.
+  A `@tailwindcss/typography`-based prose pass would be the right
+  long-term fix.
+- [ ] 🟡 **Favicon is still the Next.js default.** Need a real
+  favicon set (16/32/180/512 px) themed to the indigo accent.
 
 ---
 
 ## C. UX polish
 
-- [ ] 🟡 **Loading skeletons that match the result card shape.**
-  Currently a generic spinner appears in dead center. Sibling
-  projects use shimmer-skeleton cards.
-
-- [ ] 🟡 **Empty state for "no corpus matches your query" needs a
-  helpful nudge.** Right now it just says "no results, try different
-  keywords." Better: list the 5 example pills as clickable chips, or
-  show stats (e.g. "indexed 15 documents — try one of these topics").
-
-- [ ] 🟡 **Cmd+K / Ctrl+K to focus search input.** Industry-standard
-  shortcut. Easy win — wire a global keydown listener in `<Navbar>`.
-
-- [ ] 🟡 **`/` to focus search.** Same wire, just an alternate key
-  binding. GitHub uses this; users will try it.
-
-- [ ] 🟡 **`Esc` to clear query and close suggestions.** Already
-  partially wired in search-bar; verify across the page.
-
-- [ ] 🟡 **Syntax highlighting on code blocks in results.**
-  Prism.js is in `package.json` but unused. Pick shiki or
-  prismjs and wire into the result-card body when the chunk is
-  recognized as code. The current `<pre>` looks like `cat foo.js`.
-
-- [ ] 🟡 **Copy-to-clipboard toast.** Currently the button text
-  flips to "Copied" for ~2s with no other feedback. A small toast
-  ("Copied snippet to clipboard") feels more deliberate.
-
-- [ ] 🟡 **Hover states on every interactive element.** Filter
-  buttons in `search-filters.tsx` have `hover:bg-slate-100` but no
-  `focus-visible` ring. Define a global `focus-visible` style.
-
-- [ ] 🟡 **Focus management.** After a search submits, focus should
-  go to the first result heading. After clearing, back to the input.
-
-- [ ] 🟢 **Keyboard navigation through result cards.** ↓ / ↑ to move
-  between results, Enter to copy. Industry-standard for search UIs.
-
-- [ ] 🟢 **Result-card click → permalink.** Right now the card is
-  a static block. Click → `/search/result/{id}` with the chunk
-  isolated, shareable URL, "expand context" button.
+- [x] 🟡 ~~Loading skeletons.~~ 3 shimmer-skeleton cards while the
+  search request is in flight, matching the result-card silhouette.
+- [x] 🟡 ~~Better empty state.~~ "No results — the seeded corpus is
+  small (15 hand-curated entries). Try one of the topics it covers"
+  + clickable example pills.
+- [x] 🟡 ~~Cmd+K / Ctrl+K to focus search.~~ Global handler in
+  `Navbar` finds `[data-search-input]` and focuses + selects.
+- [x] 🟡 ~~`/` to focus search.~~ Same handler.
+- [x] 🟡 ~~`Esc` clears + closes.~~ Already in `search-bar.tsx`,
+  verified.
+- [ ] 🟡 **Syntax highlighting on code blocks.** `prismjs` is still
+  in package.json but unused. Wire shiki for the result body when
+  the chunk language is a recognized one. The current monospace
+  `<pre>` is readable but not branded.
+- [ ] 🟡 **Copy-to-clipboard toast.** Button text flips to "Copied"
+  for ~2s; a toast ("Copied snippet to clipboard") would feel more
+  deliberate.
+- [x] 🟡 ~~Hover + focus-visible states.~~ Global `:focus-visible`
+  rule in `globals.css` puts a ring on every focusable element.
+- [ ] 🟡 **Focus management on search submit.** After search, focus
+  should jump to the first result heading; after clearing, back to
+  the input.
+- [ ] 🟢 **Keyboard navigation through result cards.** ↓ / ↑ between
+  results, Enter to copy.
+- [ ] 🟢 **Result-card click → permalink.** Click → `/search/result/{id}`
+  with the chunk isolated and shareable.
 
 ---
 
@@ -164,11 +110,10 @@ shadow / radius / color.
 - [ ] 🟡 **Add real source metadata to the card.** Currently we
   show similarity / score / language. Real search UIs (Algolia,
   DocSearch) also show: source URL, breadcrumb of where it lives,
-  excerpt with the matched-term highlighted, "last updated" date.
-
-- [ ] 🟡 **Match-term highlighting in the snippet.** Bold the query
-  terms in the result body using `<mark>`. This is a 30-line
-  function but visually screams "production-grade search."
+  "last updated" date.
+- [x] 🟡 ~~Match-term highlighting in the snippet.~~ `<mark.search-mark>`
+  highlights every query token (≥2 chars) in the title + body, in
+  both light and dark mode.
 
 - [ ] 🟡 **Truncate-with-fade for long results.** Current `<pre>`
   shows the whole 800-word answer inline. Better: show first ~10
