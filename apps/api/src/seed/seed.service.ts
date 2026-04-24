@@ -317,10 +317,17 @@ function sha256(s: string): string {
  * githubIds for hand-curated repos so the unique constraint can
  * match across re-runs without storing extra state.
  */
+/**
+ * Cheap deterministic hash, clamped to the positive 31-bit range so
+ * the result fits INT4 in Postgres (the Repository.githubId column).
+ * The seed service then negates it (so synthetic ids never collide
+ * with real GitHub-supplied ones, which are positive). Final values
+ * sit in [-2_147_483_647, -1].
+ */
 function hashToInt(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i += 1) {
-    h = Math.trunc((h << 5) - h + (s.codePointAt(i) ?? 0));
+    h = Math.trunc((h * 31 + (s.codePointAt(i) ?? 0)) % 2_147_483_647);
   }
-  return h;
+  return Math.abs(h);
 }
